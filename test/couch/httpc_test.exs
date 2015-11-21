@@ -6,4 +6,16 @@ defmodule Couch.Test.HttpcTest do
     assert Couch.Httpc.json_body( %HTTPoison.Response{body: "invalid"} ) == {:error, {:invalid, "i"}}
   end
 
+  test "request" do
+  end
+
+  test "db_request" do
+  end
+
+  test "db_resp" do
+  end
+
+  test "make_headers" do
+  end
+
 end

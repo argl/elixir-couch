@@ -29,7 +29,8 @@ defmodule Couch.Mixfile do
   defp deps do
     [
       {:httpoison, "~> 0.8.0"},
-      {:poison, "~> 1.5"}
+      {:poison, "~> 1.5"},
+      {:oauth, "~> 1.6", hex: :barrel_oauth}
     ]
   end
 end

@@ -66,12 +66,7 @@ defmodule Couch do
 
   # Handle replication. Pass an object containting all informations
   # It allows to pass for example an authentication info
-  # rep_obj = {[
-  #   {<<"source">>, <<"sourcedb">>},
-  #   {<<"target">>, <<"targetdb">>},
-  #   {<<"create_target">>, true}
-  # ]}
-  # replicate(Server, RepObj)
+  # rep_obj = %{source: "sourcedb", target: "targetdb", create_target: true}
   def replicate(server, rep_obj) do
     url = :hackney_url.make_url(server.url, ["_replicate"], [])
     headers = [{"Content-Type", "application/json"}]
@@ -83,10 +78,126 @@ defmodule Couch do
            status_code when status_code == 200 or status_code ==201 -> Couch.Httpc.json_body(resp)
            _ -> {:error, {:bad_response, {resp.status_code, resp.headers, resp.body}}}
         end
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+  
+  def replicate(server, source, target) do
+    replicate(server, source, target, %{})
+  end
+  def replicate(server, %DB{name: source}, target, options) do
+    replicate(server, source, target, options)
+  end
+  def replicate(server, source, %DB{name: target}, options) do
+    replicate(server, source, target, options)
+  end
+  def replicate(server, %DB{name: source}, %DB{name: target}, options) do
+    replicate(server, source, target, options)
+  end
+  def replicate(server, source, target, options) do
+    rep_obj = Map.merge options, %{ source: source, target: target }
+    replicate(server, rep_obj)
+  end
+
+
+  # TODO
+  # get_config
+  # set_config
+  # delete_config
+
+  # all_dbs
+  def all_dbs(%Server{url: server_url, options: opts}) do
+    url = :hackney_url.make_url(server_url, "_all_dbs", [])
+    case Couch.Httpc.db_request(:get, url, [], "", opts, [200]) do
+      {:ok, resp} ->
+        {:ok, all_dbs} = Couch.Httpc.json_body(resp)
+        {:ok, all_dbs}
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+  # db_exists
+  def db_exists(%Server{url: server_url, options: opts}, db_name) do
+    url = :hackney_url.make_url(server_url, db_name, [])
+    case Couch.Httpc.db_request(:head, url, [], "", opts, [200]) do
+      {:ok, _resp} ->
+        true
+      _error ->
+        false
+    end
+  end
+  # create_db
+  def create_db(%Server{url: server_url, options: opts} = server, db_name, options \\ [], params \\ []) do
+    merged_options = Couch.Util.propmerge1(options, opts)
+    url = :hackney_url.make_url(server_url, db_name, params)
+    case Couch.Httpc.db_request(:put, url, [], "", merged_options, [201]) do
+      {:ok, _resp} ->
+        {:ok, %DB{server: server, name: db_name, options: merged_options}}
+      {:error, :precondition_failed} ->
+        {:error, :db_exists}
       error ->
         error
     end
   end
+  # delete_db
+  def delete_db(%DB{server: server, name: db_name}) do
+    delete_db(server, db_name)
+  end
+
+  def delete_db(%Server{url: server_url, options: opts}, db_name) do
+    url = :hackney_url.make_url(server_url, db_name, [])
+    case Couch.Httpc.db_request(:delete, url, [], "", opts, [200]) do
+      {:ok, resp} ->
+        {:ok, response} = Couch.Httpc.json_body(resp)
+        {:ok, response}
+      error ->
+        error
+    end
+
+  end
+
+  # open_db
+  # open_or_create_db
+  # db_info
+
+  # doc_exists
+  # open_doc
+  
+  # stream_doc
+  # end_doc_stream
+
+  # save_doc
+  # save_docs
+  # delete_doc
+  # delete_docs
+  # copy_doc
+  # do_copy (?)
+
+  # lookup_doc_rev
+
+  # fetch_attachment
+  # stream_attachment
+  # put_attachment
+  # send_attachment
+  # delete_attachment
+
+  # ensure_full_commit (is this in couchdb-api?)
+
+  # compact
+  # get_missing_revs
+
+  ## PRIVATE
+  # maybe_docid
+  # update_config
+
+
+
+
+
+
+
+
 
 
 

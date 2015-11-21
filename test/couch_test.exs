@@ -4,7 +4,10 @@ defmodule Couch.Test do
 
   setup do
     url = Application.get_env(:couch, :url)
-    {:ok, [url: url]}
+    dbname = "test_database"
+    repl_dbname = "test_replication"
+    create_dbname = "test_create"
+    {:ok, [url: url, dbname: dbname, repl_dbname: repl_dbname, create_dbname: create_dbname]}
   end
 
   test "server_connection via url", %{url: url} do
@@ -35,11 +38,65 @@ defmodule Couch.Test do
     assert String.length(hd(uuids)) == 32
   end
 
-  test "replicate", %{url: url} do
+  test "replicate", %{url: url, dbname: dbname, repl_dbname: repl_dbname} do
     connection = Couch.server_connection url
-    repl_obj = %{source: "test_database", target: "test_replication", create_target: true}
+    repl_obj = %{source: dbname, target: repl_dbname, create_target: true}
     {:ok, resp} = Couch.replicate(connection, repl_obj)
     assert Map.get(resp, "ok") == true
+
+    repl_obj = %{source: "non existing db", target: repl_dbname, create_target: true}
+    assert {:error, _} = Couch.replicate(connection, repl_obj)
   end
+
+  test "replicate shortcuts", %{url: url, dbname: dbname, repl_dbname: repl_dbname} do
+    connection = Couch.server_connection url
+    db1 = %Couch.DB{server: connection, name: dbname}
+    db2 = %Couch.DB{server: connection, name: repl_dbname}
+    {:ok, resp} = Couch.replicate(connection, dbname, repl_dbname, %{create_target: true})
+    assert Map.get(resp, "ok") == true
+    {:ok, resp} = Couch.replicate(connection, db1, repl_dbname, %{create_target: true})
+    assert Map.get(resp, "ok") == true
+    {:ok, resp} = Couch.replicate(connection, dbname, db2, %{create_target: true})
+    assert Map.get(resp, "ok") == true
+    {:ok, resp} = Couch.replicate(connection, db1, db2, %{create_target: true})
+    assert Map.get(resp, "ok") == true
+  end
+
+  test "all_dbs", %{url: url} do
+    connection = Couch.server_connection url
+    result = Couch.all_dbs(connection)
+    assert {:ok, resp} = result
+    assert is_list(resp) == true
+    assert length(resp) > 1
+    assert Enum.member?(resp, "_users")
+  end
+
+  test "db_exists", %{url: url, dbname: dbname} do
+    connection = Couch.server_connection url
+    result = Couch.db_exists(connection, dbname)
+    assert result
+    result = Couch.db_exists(connection, "non existing db")
+    assert !result
+  end
+
+  test "create_db, delete_db", %{url: url, create_dbname: create_dbname} do
+    connection = Couch.server_connection url
+
+    if Couch.db_exists(connection, create_dbname) do
+      Couch.delete_db(connection, create_dbname)
+    end
+
+    {:ok, db} = Couch.create_db(connection, create_dbname)
+    assert db.server == connection
+    assert db.name == create_dbname
+
+    {:ok, response} = Couch.delete_db(connection, create_dbname)
+    assert response["ok"]
+    assert !Couch.db_exists(connection, create_dbname)
+  end
+
+
+
+
 
 end
