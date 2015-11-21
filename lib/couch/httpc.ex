@@ -6,7 +6,7 @@ defmodule Couch.Httpc do
 
   def request(method, url, headers, body, options) do
     {final_headers, final_opts} = make_headers(method, url, headers, options)
-    HTTPoison.request(method, url, body, headers, options)
+    HTTPoison.request(method, url, body, final_headers, final_opts)
   end
 
   def db_request(method, url, headers, body, options) do

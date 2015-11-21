@@ -83,6 +83,8 @@ defmodule Couch.Test do
     connection = Couch.server_connection url
 
     if Couch.db_exists(connection, create_dbname) do
+      # this is not pretty. delete_db is not tested at this point
+      # testing against a mock would prevent this situation. oh my.
       Couch.delete_db(connection, create_dbname)
     end
 
@@ -95,6 +97,37 @@ defmodule Couch.Test do
     assert !Couch.db_exists(connection, create_dbname)
   end
 
+  test "open_db", %{url: url, create_dbname: create_dbname} do
+    connection = Couch.server_connection url
+    if Couch.db_exists(connection, create_dbname) do
+      Couch.delete_db(connection, create_dbname)
+    end
+    {:ok, db} = Couch.open_db(connection, create_dbname)
+    assert db.server == connection
+    assert db.name == create_dbname
+  end
+
+  test "open_or_create_db", %{url: url, create_dbname: create_dbname} do
+    connection = Couch.server_connection url
+    if Couch.db_exists(connection, create_dbname) do
+      Couch.delete_db(connection, create_dbname)
+    end
+    {:ok, db} = Couch.open_or_create_db(connection, create_dbname)
+    assert db.server == connection
+    assert db.name == create_dbname
+    assert Couch.db_exists(connection, create_dbname)
+    Couch.delete_db(connection, create_dbname)
+  end
+
+  test "db_info", %{url: url, dbname: dbname} do
+    connection = Couch.server_connection url
+    {:ok, db} = Couch.open_db(connection, dbname)
+    {:ok, infos} = Couch.db_info(db)
+    assert infos["db_name"] == dbname
+
+    {:ok, db} = Couch.open_db(connection, "non-exisiting-db")
+    assert {:error, :db_not_found} = Couch.db_info(db)
+  end
 
 
 

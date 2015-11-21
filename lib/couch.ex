@@ -158,25 +158,37 @@ defmodule Couch do
   end
 
   # open_db
-  def open_db(%Server{options:opts} = server, db_name, options \\ []) do
+  def open_db(%Server{options: opts} = server, db_name, options \\ []) do
     merged_options = Couch.Util.propmerge1(options, opts)
     {:ok, %DB{server: server, name: db_name, options: merged_options}}
   end
   # open_or_create_db
   def open_or_create_db(%Server{url: server_url, options: opts} = server, db_name, options \\ [], params \\ []) do
     url = :hackney_url.make_url(server_url, db_name, [])
-
     merged_options = Couch.Util.propmerge1(options, opts)
-    case Couch.Httpc.db_request(:get, url, [], "", merged_options) do
+    response = Couch.Httpc.db_request(:head, url, [], "", merged_options)
+    case Couch.Httpc.db_resp(response, [200]) do
       {:ok, _resp} ->
         open_db(server, db_name, options);
       {:error, :not_found} ->
-        create_db(server, dbname, options, params);
+        create_db(server, db_name, options, params);
       error ->
         error
     end
   end
   # db_info
+  def db_info(%DB{server: server, name: db_name, options: options}) do
+    url = :hackney_url.make_url(server.url, db_name, [])
+    case Couch.Httpc.db_request(:get, url, [], "", options, [200]) do
+      {:ok, resp} ->
+        {:ok, infos} = Couch.Httpc.json_body(resp)
+        {:ok, infos}
+      {:error, :not_found} ->
+        {:error, :db_not_found}
+      error ->
+        error
+    end
+  end
 
   # doc_exists
   # open_doc
