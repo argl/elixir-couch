@@ -7,5 +7,6 @@ On the other hand, I _do_ plan to integrate it into some larger real-word applic
 and actually use it.
 
 The whole thing is currently not really usable since only a handful server-related api calls
-are implemented. The tests work though.  Stay tuned to see the project evolve (or me failing).
+are implemented. The tests work though.  Stay tuned to see the project evolve (or me fail).
 
+License: MIT
