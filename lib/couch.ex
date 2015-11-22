@@ -2,6 +2,9 @@ defmodule Couch do
 
   @timeout :infinity
 
+  alias Couch.Util
+  alias Couch.Httpc
+
   defmodule Server do
     defstruct url: nil,
               options: []
@@ -47,7 +50,7 @@ defmodule Couch do
   def server_info(server) do
     case HTTPoison.get(server.url, [], server.options) do
       {:ok, resp} ->
-        Couch.Httpc.json_body(resp)
+        Httpc.json_body(resp)
       {:error, reason} ->
         {:error, reason}
       error ->
@@ -75,7 +78,7 @@ defmodule Couch do
     case HTTPoison.request(:post, url, json_obj, headers, server.options) do
       {:ok, resp} ->
         case resp.status_code do
-           status_code when status_code == 200 or status_code ==201 -> Couch.Httpc.json_body(resp)
+           status_code when status_code == 200 or status_code ==201 -> Httpc.json_body(resp)
            _ -> {:error, {:bad_response, {resp.status_code, resp.headers, resp.body}}}
         end
       {:error, reason} ->
@@ -109,9 +112,9 @@ defmodule Couch do
   # all_dbs
   def all_dbs(%Server{url: server_url, options: opts}) do
     url = :hackney_url.make_url(server_url, "_all_dbs", [])
-    case Couch.Httpc.db_request(:get, url, [], "", opts, [200]) do
+    case Httpc.db_request(:get, url, [], "", opts, [200]) do
       {:ok, resp} ->
-        {:ok, all_dbs} = Couch.Httpc.json_body(resp)
+        {:ok, all_dbs} = Httpc.json_body(resp)
         {:ok, all_dbs}
       {:error, reason} ->
         {:error, reason}
@@ -120,7 +123,7 @@ defmodule Couch do
   # db_exists
   def db_exists(%Server{url: server_url, options: opts}, db_name) do
     url = :hackney_url.make_url(server_url, db_name, [])
-    case Couch.Httpc.db_request(:head, url, [], "", opts, [200]) do
+    case Httpc.db_request(:head, url, [], "", opts, [200]) do
       {:ok, _resp} ->
         true
       _error ->
@@ -129,9 +132,9 @@ defmodule Couch do
   end
   # create_db
   def create_db(%Server{url: server_url, options: opts} = server, db_name, options \\ [], params \\ []) do
-    merged_options = Couch.Util.propmerge1(options, opts)
+    merged_options = Util.propmerge1(options, opts)
     url = :hackney_url.make_url(server_url, db_name, params)
-    case Couch.Httpc.db_request(:put, url, [], "", merged_options, [201]) do
+    case Httpc.db_request(:put, url, [], "", merged_options, [201]) do
       {:ok, _resp} ->
         {:ok, %DB{server: server, name: db_name, options: merged_options}}
       {:error, :precondition_failed} ->
@@ -147,9 +150,9 @@ defmodule Couch do
 
   def delete_db(%Server{url: server_url, options: opts}, db_name) do
     url = :hackney_url.make_url(server_url, db_name, [])
-    case Couch.Httpc.db_request(:delete, url, [], "", opts, [200]) do
+    case Httpc.db_request(:delete, url, [], "", opts, [200]) do
       {:ok, resp} ->
-        {:ok, response} = Couch.Httpc.json_body(resp)
+        {:ok, response} = Httpc.json_body(resp)
         {:ok, response}
       error ->
         error
@@ -159,15 +162,15 @@ defmodule Couch do
 
   # open_db
   def open_db(%Server{options: opts} = server, db_name, options \\ []) do
-    merged_options = Couch.Util.propmerge1(options, opts)
+    merged_options = Util.propmerge1(options, opts)
     {:ok, %DB{server: server, name: db_name, options: merged_options}}
   end
   # open_or_create_db
   def open_or_create_db(%Server{url: server_url, options: opts} = server, db_name, options \\ [], params \\ []) do
     url = :hackney_url.make_url(server_url, db_name, [])
-    merged_options = Couch.Util.propmerge1(options, opts)
-    response = Couch.Httpc.db_request(:head, url, [], "", merged_options)
-    case Couch.Httpc.db_resp(response, [200]) do
+    merged_options = Util.propmerge1(options, opts)
+    response = Httpc.db_request(:head, url, [], "", merged_options)
+    case Httpc.db_resp(response, [200]) do
       {:ok, _resp} ->
         open_db(server, db_name, options);
       {:error, :not_found} ->
@@ -179,9 +182,9 @@ defmodule Couch do
   # db_info
   def db_info(%DB{server: server, name: db_name, options: options}) do
     url = :hackney_url.make_url(server.url, db_name, [])
-    case Couch.Httpc.db_request(:get, url, [], "", options, [200]) do
+    case Httpc.db_request(:get, url, [], "", options, [200]) do
       {:ok, resp} ->
-        {:ok, infos} = Couch.Httpc.json_body(resp)
+        {:ok, infos} = Httpc.json_body(resp)
         {:ok, infos}
       {:error, :not_found} ->
         {:error, :db_not_found}
@@ -190,9 +193,55 @@ defmodule Couch do
     end
   end
 
-  # doc_exists
+  # doc_exist
+  def doc_exists(%DB{server: server, options: options} = db, doc_id) do
+    doc_id = Util.encode_docid(doc_id)
+    url = :hackney_url.make_url(server.url, Httpc.doc_url(db, doc_id), [])
+    case Httpc.db_request(:head, url, [], "", options, [200]) do
+      {:ok, _resp} ->
+        true
+      _error ->
+        false
+    end
+  end
   # open_doc
-  
+  def open_doc(%DB{server: server, options: options} = db, doc_id, params \\ []) do
+    doc_id = Util.encode_docid(doc_id)
+
+    {accept, params} = case Keyword.get(params, :accept) do
+      nil -> {:any, params}
+      a -> {a, Keyword.delete(params, :accept)}
+    end
+
+    headers = case {accept, List.keyfind(params, "attachments", 0)} do
+      {:any, true} ->
+        # %% only use the more efficient method when we get the
+        # %% attachments so we don't use much bandwidth.
+        [{"Accept", "multipart/related"}]
+      {accept, _} when is_binary(accept)  ->
+        # %% accepted content-type has been forced
+        [{"Accept", accept}];
+      _ ->
+        []
+    end
+
+    url = :hackney_url.make_url(server.url, Httpc.doc_url(db, doc_id), params)
+    case Httpc.db_request(:get, url, headers, "", options, [200, 201]) do
+      {:ok, resp} ->
+        case :hackney_headers.parse("content-type", resp.headers) do
+          {"multipart", _, _} ->
+            # %% we get a multipart request, start to parse it.
+            initial_state = {resp, fn() -> Httpc.wait_mp_doc(resp, "") end }
+            {:ok, {:multipart, initial_state}}
+          _ ->
+            {:ok, doc} = Httpc.json_body(resp)
+            {:ok, doc}
+        end
+      error ->
+        error
+    end
+  end
+
   # stream_doc
   # end_doc_stream
 

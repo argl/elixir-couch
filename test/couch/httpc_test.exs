@@ -6,6 +6,12 @@ defmodule Couch.Test.HttpcTest do
     assert Couch.Httpc.json_body( %HTTPoison.Response{body: "invalid"} ) == {:error, {:invalid, "i"}}
   end
 
+  test "doc_url" do
+    db = %Couch.DB{name: "database"}
+    docid = "docid"
+    assert Couch.Httpc.doc_url(db, docid) == "database/docid"
+  end
+
   test "request" do
   end
 

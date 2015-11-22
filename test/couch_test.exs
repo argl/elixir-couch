@@ -129,6 +129,30 @@ defmodule Couch.Test do
     assert {:error, :db_not_found} = Couch.db_info(db)
   end
 
+  test "doc_exist", %{url: url} do
+    connection = Couch.server_connection url
+    db = %Couch.DB{name: "_replicator", server: connection}
+    assert Couch.doc_exists(db, "_design/_replicator")
+    assert !Couch.doc_exists(db, "_design/nothing_here")
+  end
+
+  test "open_doc", %{url: url} do
+    connection = Couch.server_connection url
+    db = %Couch.DB{name: "_replicator", server: connection}
+    {:ok, doc} = Couch.open_doc(db, "_design/_replicator")
+    assert doc["_id"] == "_design/_replicator"
+    assert doc["_rev"]
+    {:error, :not_found} = Couch.open_doc(db, "_design/non-existing")
+
+  end
+
+  # test "get streaming douments" , %{url: url, dbname: dbname} do
+  #   # streaming documents? for tests see couchbeam.erl, line 1229
+  # end
+
+  # test "save_doc, delete_doc", %{url: url, dbname: dbname} do
+  # end
+
 
 
 

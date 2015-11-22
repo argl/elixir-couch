@@ -4,6 +4,10 @@ defmodule Couch.Httpc do
     Poison.decode(ref.body)
   end
 
+  def doc_url(db, docid) do
+    db.name <> "/" <> docid
+  end
+
   def request(method, url, headers, body, options) do
     {final_headers, final_opts} = make_headers(method, url, headers, options)
     HTTPoison.request(method, url, body, final_headers, final_opts)

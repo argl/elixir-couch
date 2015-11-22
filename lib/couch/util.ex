@@ -13,6 +13,16 @@ defmodule Couch.Util do
     end
   end
 
+  def encode_docid(docid) do
+    case docid do
+      <<"_design/", rest::binary>> ->
+        encoded = :hackney_url.urlencode(rest, [:noplus])
+        "_design/" <> encoded
+      _ ->
+        :hackney_url.urlencode(docid, [:noplus])
+    end
+  end
+
 
   def oauth_header(url, action, oauth_props) do
     {_, _, _, _, _, _, qs, _, _, _, _, _} = :hackney_url.parse_url(url)
