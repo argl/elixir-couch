@@ -165,6 +165,7 @@ defmodule Couch do
     merged_options = Util.propmerge1(options, opts)
     {:ok, %DB{server: server, name: db_name, options: merged_options}}
   end
+
   # open_or_create_db
   def open_or_create_db(%Server{url: server_url, options: opts} = server, db_name, options \\ [], params \\ []) do
     url = :hackney_url.make_url(server_url, db_name, [])
@@ -179,6 +180,7 @@ defmodule Couch do
         error
     end
   end
+  
   # db_info
   def db_info(%DB{server: server, name: db_name, options: options}) do
     url = :hackney_url.make_url(server.url, db_name, [])
@@ -204,6 +206,7 @@ defmodule Couch do
         false
     end
   end
+
   # open_doc
   def open_doc(%DB{server: server, options: options} = db, doc_id, params \\ []) do
     doc_id = Util.encode_docid(doc_id)
@@ -230,6 +233,7 @@ defmodule Couch do
       {:ok, resp} ->
         case :hackney_headers.parse("content-type", resp.headers) do
           {"multipart", _, _} ->
+            raise "multipart/related reponses not implemented (yet)"
             # %% we get a multipart request, start to parse it.
             initial_state = {resp, fn() -> Httpc.wait_mp_doc(resp, "") end }
             {:ok, {:multipart, initial_state}}
@@ -246,9 +250,93 @@ defmodule Couch do
   # end_doc_stream
 
   # save_doc
+  def save_doc(db, doc, options \\ []) do
+    save_doc(db, doc, [], options)
+  end
+  def save_doc(%DB{server: server, options: opts} = db, doc, atts, options) do
+    doc_id = case Access.fetch(doc, :_id) do
+      :error ->
+        [id] = get_uuid(server)
+        id
+      {:ok, id} ->
+        Util.encode_docid(id)
+    end
+    url = :hackney_url.make_url(server.url, Httpc.doc_url(db, doc_id), options)
+    case atts do
+      [] ->
+        {:ok, json_doc} = Poison.encode(doc)
+        headers = [{"Content-Type", "application/json"}]
+        case Httpc.db_request(:put, url, headers, json_doc, opts, [200, 201]) do
+          {:ok, resp} ->
+            {:ok, saved_doc} = Httpc.json_body(resp)
+            {:ok, saved_doc}
+          error ->
+            error
+        end
+      _ ->
+        raise "Saving multipart with attachments not implemented (yet)"
+        #         Boundary = couchbeam_uuids:random(),
+
+        #         %% for now couchdb can't received chunked multipart stream
+        #         %% so we have to calculate the content-length. It also means
+        #         %% that we need to know the size of each attachments. (Which
+        #         %% should be expected).
+        #         {CLen, JsonDoc, Doc2} = couchbeam_httpc:len_doc_to_mp_stream(Atts, Boundary, Doc),
+        #         CType = <<"multipart/related; boundary=\"",
+        #                   Boundary/binary, "\"" >>,
+
+        #         Headers = [{<<"Content-Type">>, CType},
+        #                    {<<"Content-Length">>, hackney_bstr:to_binary(CLen)}],
+
+        #         case couchbeam_httpc:request(put, Url, Headers, stream,
+        #                                      Opts) of
+        #             {ok, Ref} ->
+        #                 couchbeam_httpc:send_mp_doc(Atts, Ref, Boundary, JsonDoc, Doc2);
+        #             Error ->
+        #                 Error
+        #         end
+    end
+  end
+
   # save_docs
+  def save_docs(%DB{server: server, options: opts} = db, docs, options \\ []) do
+    docs = Enum.map(docs, fn(doc) -> maybe_docid(server, doc) end)
+    doc_options = for {k, v} <- options, (k == "all_or_nothing" or k == "new_edits") and is_boolean(v), do: %{k: v}
+    options2 = for {k, v} <- options, k != "all_or_nothing" or k != "new_edits", do: {k, v}
+    body = %{docs: docs}
+    Enum.each(doc_options, fn(opt) -> Map.merge(body, opt) end)
+
+    {:ok, body} = Poison.encode(body)
+    # IO.inspect body
+    url = :hackney_url.make_url(server.url, [db.name, "_bulk_docs"], options2)
+    headers = [{"Content-Type", "application/json"}]
+    case Httpc.db_request(:post, url, headers, body, opts, [201]) do
+      {:ok, resp} ->
+        {:ok, response} = Httpc.json_body(resp)
+        {:ok, response}
+      error ->
+        error
+    end
+  end
+
   # delete_doc
+  def delete_doc(db, doc, options \\ []) do
+    delete_docs(db, [doc], options)
+  end
+  
   # delete_docs
+  def delete_docs(db, docs, options \\ []) do
+    empty = Util.get_value("empty_on_delete", options, false)
+    {final_docs, final_options} = case empty do
+      true ->
+        docs = Enum.map(docs, fn(doc)-> %{_id: doc._id, _rev: doc._rev, _deleted: true} end)
+        {docs, List.keydelete(options, "all_or_nothing", 0)}
+      _ ->
+        docs = Enum.map(docs, fn(doc)-> Map.put(doc, :_deleted, true) end)
+        {docs, options}
+    end
+    save_docs(db, final_docs, final_options)
+  end
   # copy_doc
   # do_copy (?)
 
@@ -267,6 +355,17 @@ defmodule Couch do
 
   ## PRIVATE
   # maybe_docid
+  defp maybe_docid(server, doc, key \\ :_id) do
+    case Access.fetch(doc, key) do
+      :error when is_atom(key) ->
+        maybe_docid(server, doc, Atom.to_string(key))
+      :error ->
+        [id] = get_uuid(server)
+        Map.put(doc, key, id)
+      _ ->
+        doc
+    end
+  end
   # update_config
 
 

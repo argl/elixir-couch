@@ -1,15 +1,28 @@
 defmodule Couch.Util do
 
   def get_value(key, prop, default \\ nil) do
-    case List.keyfind(prop, key, 0, default) do
-      nil -> 
-        case List.keymember?(prop, key, 0) do
-          true -> true
-          false -> default
+    case prop do
+      prop when is_map(prop) and is_binary(key) -> 
+        case prop[String.to_atom(key)] do
+          nil -> default
+          value -> value
         end
-      {_key, value} -> value
-      other when is_tuple(other) -> default
-      _ -> default
+      prop when is_map(prop) and is_atom(key) -> 
+        case prop[key] do
+          nil -> default
+          value -> value
+        end
+      prop when is_list(prop) ->
+        case List.keyfind(prop, key, 0, default) do
+          nil -> 
+            case List.keymember?(prop, key, 0) do
+              true -> true
+              false -> default
+            end
+          {_key, value} -> value
+          other when is_tuple(other) -> default
+          _ -> default
+        end
     end
   end
 

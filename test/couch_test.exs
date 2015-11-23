@@ -143,8 +143,42 @@ defmodule Couch.Test do
     assert doc["_id"] == "_design/_replicator"
     assert doc["_rev"]
     {:error, :not_found} = Couch.open_doc(db, "_design/non-existing")
-
   end
+
+  test "basic single save_doc, delete_doc", %{url: url, dbname: dbname} do
+    connection = Couch.server_connection url
+    db = %Couch.DB{name: dbname, server: connection}
+    doc = %{_id: "test-document", attr: "test"}
+    if Couch.doc_exists(db, doc._id) do
+      {:ok, doc_to_delete} = Couch.open_doc(db, doc._id)      
+      {:ok, _response} = Couch.delete_doc(db, doc_to_delete)
+    end
+    result = Couch.save_doc(db, doc)
+    assert {:ok, _saved} = result
+    result = Couch.save_doc(db, doc)
+    assert {:error, :conflict} = result
+    result = Couch.delete_doc(db, doc)
+    assert {:ok, _deleted} = result
+  end
+
+  test "bulk save_docs, delete_docs", %{url: url, dbname: dbname} do
+    connection = Couch.server_connection url
+    db = %Couch.DB{name: dbname, server: connection}
+    docs = [%{_id: "test-document1", attr: "test"}, %{_id: "test-document2", attr: "test"}]
+    Enum.each(docs, fn(doc) -> 
+      if Couch.doc_exists(db, doc._id) do
+        {:ok, doc_to_delete} = Couch.open_doc(db, doc._id)
+        {:ok, _response} = Couch.delete_doc(db, doc_to_delete)
+      end
+    end)
+    result = Couch.save_docs(db, docs)
+    assert {:ok, _saved} = result
+    # result = Couch.save_doc(db, doc)
+    # assert {:error, :conflict} = result
+    result = Couch.delete_docs(db, docs)
+    assert {:ok, _deleted} = result
+  end
+
 
   # test "get streaming douments" , %{url: url, dbname: dbname} do
   #   # streaming documents? for tests see couchbeam.erl, line 1229

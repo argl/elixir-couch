@@ -9,6 +9,12 @@ defmodule Couch.Test.UtilTest do
     assert Util.get_value("key2", proplist, "default")  == "value2"
     assert Util.get_value("key3", proplist, "default")  == "default"
     assert Util.get_value("key3", proplist) == nil
+    map = %{"key1": "val1", "key2": "val2"}
+    assert Util.get_value("key1", map) == "val1"
+    assert Util.get_value("key2", map) == "val2"
+    map = %{key1: "val1", key2: "val2"}
+    assert Util.get_value("key1", map) == "val1"
+    assert Util.get_value(:key2, map) == "val2"
   end
 
   test "propnerge" do
@@ -40,7 +46,7 @@ defmodule Couch.Test.UtilTest do
   end
 
   # test "oath_header" do
-    
+
   # end
 
 end
