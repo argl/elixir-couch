@@ -27,8 +27,8 @@ defmodule Couch.Test do
   test "server_info", %{url: url} do
     connection = Couch.server_connection url
     {:ok, resp} = Couch.server_info(connection)
-    assert Map.get(resp, "couchdb") == "Welcome"
-    assert Map.get(resp, "version") 
+    assert resp.couchdb == "Welcome"
+    assert resp.version
   end
 
   test "get_uuid", %{url: url} do
@@ -42,7 +42,7 @@ defmodule Couch.Test do
     connection = Couch.server_connection url
     repl_obj = %{source: dbname, target: repl_dbname, create_target: true}
     {:ok, resp} = Couch.replicate(connection, repl_obj)
-    assert Map.get(resp, "ok") == true
+    assert resp.ok == true
 
     repl_obj = %{source: "non existing db", target: repl_dbname, create_target: true}
     assert {:error, _} = Couch.replicate(connection, repl_obj)
@@ -53,13 +53,13 @@ defmodule Couch.Test do
     db1 = %Couch.DB{server: connection, name: dbname}
     db2 = %Couch.DB{server: connection, name: repl_dbname}
     {:ok, resp} = Couch.replicate(connection, dbname, repl_dbname, %{create_target: true})
-    assert Map.get(resp, "ok") == true
+    assert resp.ok == true
     {:ok, resp} = Couch.replicate(connection, db1, repl_dbname, %{create_target: true})
-    assert Map.get(resp, "ok") == true
+    assert resp.ok == true
     {:ok, resp} = Couch.replicate(connection, dbname, db2, %{create_target: true})
-    assert Map.get(resp, "ok") == true
+    assert resp.ok == true
     {:ok, resp} = Couch.replicate(connection, db1, db2, %{create_target: true})
-    assert Map.get(resp, "ok") == true
+    assert resp.ok == true
   end
 
   test "all_dbs", %{url: url} do
@@ -93,7 +93,7 @@ defmodule Couch.Test do
     assert db.name == create_dbname
 
     {:ok, response} = Couch.delete_db(connection, create_dbname)
-    assert response["ok"]
+    assert response.ok
     assert !Couch.db_exists(connection, create_dbname)
   end
 
@@ -123,7 +123,7 @@ defmodule Couch.Test do
     connection = Couch.server_connection url
     {:ok, db} = Couch.open_db(connection, dbname)
     {:ok, infos} = Couch.db_info(db)
-    assert infos["db_name"] == dbname
+    assert infos.db_name == dbname
 
     {:ok, db} = Couch.open_db(connection, "non-exisiting-db")
     assert {:error, :db_not_found} = Couch.db_info(db)
@@ -140,8 +140,8 @@ defmodule Couch.Test do
     connection = Couch.server_connection url
     db = %Couch.DB{name: "_replicator", server: connection}
     {:ok, doc} = Couch.open_doc(db, "_design/_replicator")
-    assert doc["_id"] == "_design/_replicator"
-    assert doc["_rev"]
+    assert doc._id == "_design/_replicator"
+    assert doc._rev
     {:error, :not_found} = Couch.open_doc(db, "_design/non-existing")
   end
 
@@ -154,7 +154,10 @@ defmodule Couch.Test do
       {:ok, _response} = Couch.delete_doc(db, doc_to_delete)
     end
     result = Couch.save_doc(db, doc)
-    assert {:ok, _saved} = result
+    assert {:ok, saved} = result
+    assert saved.id == doc._id
+    assert saved.rev
+
     result = Couch.save_doc(db, doc)
     assert {:error, :conflict} = result
     result = Couch.delete_doc(db, doc)
@@ -179,6 +182,31 @@ defmodule Couch.Test do
     assert {:ok, _deleted} = result
   end
 
+  test "copy_doc", %{url: url, dbname: dbname} do
+    connection = Couch.server_connection url
+    db = %Couch.DB{name: dbname, server: connection}
+    doc = %{_id: "test-document", attr: "test"}
+    destination_doc_id = "new-doc-id"
+    if Couch.doc_exists(db, doc._id) do
+      {:ok, doc_to_delete} = Couch.open_doc(db, doc._id)      
+      {:ok, _response} = Couch.delete_doc(db, doc_to_delete)
+    end
+    if Couch.doc_exists(db, "new-doc-id") do
+      {:ok, doc_to_delete} = Couch.open_doc(db, destination_doc_id)      
+      {:ok, _response} = Couch.delete_doc(db, doc_to_delete)
+    end
+    {:ok, result} = Couch.save_doc(db, doc)
+    doc = Map.merge doc, %{_rev: result.rev}
+
+    result = Couch.copy_doc(db, doc._id, destination_doc_id)
+    assert {:ok, new_doc_id, new_ref} = result
+    {:ok, new_doc} = Couch.open_doc(db, destination_doc_id)
+    assert new_doc._id == destination_doc_id
+    assert new_doc._id== new_doc_id
+    assert new_doc,_rev = new_ref
+    {:ok, _response} = Couch.delete_doc(db, doc)
+    {:ok, _response} = Couch.delete_doc(db, new_doc)
+  end
 
   # test "get streaming douments" , %{url: url, dbname: dbname} do
   #   # streaming documents? for tests see couchbeam.erl, line 1229

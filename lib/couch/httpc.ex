@@ -1,7 +1,7 @@
 defmodule Couch.Httpc do
 
-  def json_body(ref) do
-    Poison.decode(ref.body)
+  def json_body(ref, opts \\ %{}) do
+    Poison.decode(ref.body, opts)
   end
 
   def doc_url(db, docid) do

@@ -50,7 +50,7 @@ defmodule Couch do
   def server_info(server) do
     case HTTPoison.get(server.url, [], server.options) do
       {:ok, resp} ->
-        Httpc.json_body(resp)
+        Httpc.json_body(resp, keys: :atoms)
       {:error, reason} ->
         {:error, reason}
       error ->
@@ -78,8 +78,10 @@ defmodule Couch do
     case HTTPoison.request(:post, url, json_obj, headers, server.options) do
       {:ok, resp} ->
         case resp.status_code do
-           status_code when status_code == 200 or status_code ==201 -> Httpc.json_body(resp)
-           _ -> {:error, {:bad_response, {resp.status_code, resp.headers, resp.body}}}
+          status_code when status_code == 200 or status_code ==201 -> 
+            Httpc.json_body(resp, keys: :atoms)
+          _ -> 
+            {:error, {:bad_response, {resp.status_code, resp.headers, resp.body}}}
         end
       {:error, reason} ->
         {:error, reason}
@@ -114,7 +116,7 @@ defmodule Couch do
     url = :hackney_url.make_url(server_url, "_all_dbs", [])
     case Httpc.db_request(:get, url, [], "", opts, [200]) do
       {:ok, resp} ->
-        {:ok, all_dbs} = Httpc.json_body(resp)
+        {:ok, all_dbs} = Httpc.json_body(resp, keys: :atoms)
         {:ok, all_dbs}
       {:error, reason} ->
         {:error, reason}
@@ -152,7 +154,7 @@ defmodule Couch do
     url = :hackney_url.make_url(server_url, db_name, [])
     case Httpc.db_request(:delete, url, [], "", opts, [200]) do
       {:ok, resp} ->
-        {:ok, response} = Httpc.json_body(resp)
+        {:ok, response} = Httpc.json_body(resp, keys: :atoms)
         {:ok, response}
       error ->
         error
@@ -186,7 +188,7 @@ defmodule Couch do
     url = :hackney_url.make_url(server.url, db_name, [])
     case Httpc.db_request(:get, url, [], "", options, [200]) do
       {:ok, resp} ->
-        {:ok, infos} = Httpc.json_body(resp)
+        {:ok, infos} = Httpc.json_body(resp, keys: :atoms)
         {:ok, infos}
       {:error, :not_found} ->
         {:error, :db_not_found}
@@ -238,7 +240,7 @@ defmodule Couch do
             initial_state = {resp, fn() -> Httpc.wait_mp_doc(resp, "") end }
             {:ok, {:multipart, initial_state}}
           _ ->
-            {:ok, doc} = Httpc.json_body(resp)
+            {:ok, doc} = Httpc.json_body(resp, keys: :atoms)
             {:ok, doc}
         end
       error ->
@@ -268,7 +270,7 @@ defmodule Couch do
         headers = [{"Content-Type", "application/json"}]
         case Httpc.db_request(:put, url, headers, json_doc, opts, [200, 201]) do
           {:ok, resp} ->
-            {:ok, saved_doc} = Httpc.json_body(resp)
+            {:ok, saved_doc} = Httpc.json_body(resp, keys: :atoms)
             {:ok, saved_doc}
           error ->
             error
@@ -312,7 +314,7 @@ defmodule Couch do
     headers = [{"Content-Type", "application/json"}]
     case Httpc.db_request(:post, url, headers, body, opts, [201]) do
       {:ok, resp} ->
-        {:ok, response} = Httpc.json_body(resp)
+        {:ok, response} = Httpc.json_body(resp, keys: :atoms)
         {:ok, response}
       error ->
         error
@@ -337,8 +339,64 @@ defmodule Couch do
     end
     save_docs(db, final_docs, final_options)
   end
+
   # copy_doc
-  # do_copy (?)
+  def copy_doc(%DB{server: server} = db, doc) do
+    [doc_id] = get_uuid(server)
+    copy_doc(db, doc, doc_id)
+  end
+  def copy_doc(db, doc, dest) when is_binary(dest) do
+    destination = case open_doc(db, dest) do
+      {:ok, dest_doc} ->
+        rev = dest_doc["_rev"]
+        %{_id: dest, _rev: rev}
+      _ ->
+        %{_id: dest, _rev: nil}
+    end
+    do_copy(db, doc, destination)
+  end
+  def copy_doc(db, doc, dest) do
+    doc_id = dest._id
+    rev = dest["_rev"]
+    do_copy(db, doc, {doc_id, rev})
+  end
+
+  # do_copy
+  def do_copy(db, doc, destination) when is_binary(destination) do
+    do_copy(db, doc, %{_id: destination, _rev: nil})
+  end
+  def do_copy(db, doc_id, destination) when is_binary(doc_id) do
+    do_copy(db, %{_id: doc_id, _rev: nil}, destination)
+  end
+  def do_copy(db, %{_id: nil, _rev: _rev} = doc, destination) do
+    {:error, :invalid_source}
+  end
+  def do_copy(%DB{server: server, options: opts}=db, %{_id: doc_id, _rev: doc_rev}, %{_id: dest_id, _rev: dest_rev}) do
+    destination = case dest_rev do
+      nil -> dest_id
+      _ -> dest_id <> "?rev=" <> dest_rev
+    end
+    headers = [{"Destination", destination}]
+    {headers, params} = case {doc_rev, dest_rev} do
+      {nil, _} ->
+        {headers, []}
+      {_, nil} ->
+        {[{"If-Match", doc_rev} | headers], []}
+      {_, _} ->
+        {headers, [{"rev", doc_rev}]}
+    end
+    url = :hackney_url.make_url(server.url, Httpc.doc_url(db, doc_id), params)
+    case Httpc.db_request(:copy, url, headers, "", opts, [201]) do
+      {:ok, resp} ->
+        {:ok, response} = Httpc.json_body(resp, keys: :atoms)
+        new_ref = response.rev
+        new_doc_id = response.id
+        {:ok, new_doc_id, new_ref}
+      error ->
+        error
+    end
+  end
+  
 
   # lookup_doc_rev
 

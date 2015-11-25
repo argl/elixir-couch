@@ -30,4 +30,4 @@ License: MIT
 * Couch.delete_doc
 * Couch.save_docs
 * Couch.delete_docs
-
+* Couch.copy_doc
