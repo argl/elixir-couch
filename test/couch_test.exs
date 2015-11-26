@@ -1,13 +1,53 @@
+# Copyright (c) 2015 Andi Pieper
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+
 defmodule Couch.Test do
   use ExUnit.Case
   doctest Couch
 
+
   setup do
+
     url = Application.get_env(:couch, :url)
-    dbname = "test_database"
-    repl_dbname = "test_replication"
-    create_dbname = "test_create"
-    {:ok, [url: url, dbname: dbname, repl_dbname: repl_dbname, create_dbname: create_dbname]}
+
+    # kill dbs
+    server = Couch.server_connection url
+    dbname = "elixir_couch_test"
+    repl_dbname = "elixir_couch_test2"
+    create_dbname = "elixir_couch_test3"
+
+    Couch.delete_db(server, dbname)
+    Couch.delete_db(server, repl_dbname)
+    Couch.delete_db(server, create_dbname)
+
+    # :timer.sleep(300)
+
+    {:ok, _db} = Couch.create_db(server, dbname)
+    # {:ok, _db} = Couch.create_db(server, repl_dbname)
+    # {:ok, _db} = Couch.create_db(server, create_dbname)
+
+    db = %Couch.DB{server: server, name: dbname}
+    db2 = %Couch.DB{server: server, name: repl_dbname}
+    db3 = %Couch.DB{server: server, name: repl_dbname}
+
+    {:ok, [url: url, server: server, db: db, db2: db2, db3: db3, dbname: dbname, repl_dbname: repl_dbname, create_dbname: create_dbname]}
   end
 
   test "server_connection via url", %{url: url} do
@@ -88,12 +128,14 @@ defmodule Couch.Test do
       Couch.delete_db(connection, create_dbname)
     end
 
-    {:ok, db} = Couch.create_db(connection, create_dbname)
+    assert {:ok, db} = Couch.create_db(connection, create_dbname)
     assert db.server == connection
     assert db.name == create_dbname
-
-    {:ok, response} = Couch.delete_db(connection, create_dbname)
+    assert {:error, :db_exists} = Couch.create_db(connection, create_dbname)
+ 
+    assert {:ok, response} = Couch.delete_db(connection, create_dbname)
     assert response.ok
+    assert {:error, :not_found} = Couch.delete_db(connection, create_dbname)
     assert !Couch.db_exists(connection, create_dbname)
   end
 
@@ -116,7 +158,6 @@ defmodule Couch.Test do
     assert db.server == connection
     assert db.name == create_dbname
     assert Couch.db_exists(connection, create_dbname)
-    Couch.delete_db(connection, create_dbname)
   end
 
   test "db_info", %{url: url, dbname: dbname} do
@@ -164,28 +205,7 @@ defmodule Couch.Test do
     assert {:ok, _deleted} = result
   end
 
-  # Copyright (c) 2015 Andi Pieper
-
-  # Permission is hereby granted, free of charge, to any person obtaining a copy
-  # of this software and associated documentation files (the "Software"), to deal
-  # in the Software without restriction, including without limitation the rights
-  # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-  # copies of the Software, and to permit persons to whom the Software is
-  # furnished to do so, subject to the following conditions:
-
-  # The above copyright notice and this permission notice shall be included in
-  # all copies or substantial portions of the Software.
-
-  # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-  # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-  # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
-  # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-  # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-  # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-  # THE SOFTWARE.
-
-
-test "bulk save_docs, delete_docs", %{url: url, dbname: dbname} do
+  test "bulk save_docs, delete_docs", %{url: url, dbname: dbname} do
     connection = Couch.server_connection url
     db = %Couch.DB{name: dbname, server: connection}
     docs = [%{_id: "test-document1", attr: "test"}, %{_id: "test-document2", attr: "test"}]
@@ -225,9 +245,6 @@ test "bulk save_docs, delete_docs", %{url: url, dbname: dbname} do
     assert new_doc._id == destination_doc_id
     assert new_doc._id== new_doc_id
     assert new_doc,_rev = new_ref
-    
-    {:ok, _response} = Couch.delete_doc(db, doc)
-    {:ok, _response} = Couch.delete_doc(db, new_doc)
   end
 
   test "lookup_doc_rev", %{url: url, dbname: dbname} do
@@ -246,8 +263,6 @@ test "bulk save_docs, delete_docs", %{url: url, dbname: dbname} do
 
     result = Couch.lookup_doc_rev(db, "non-existing")
     assert {:error, _} = result
-
-    {:ok, _response} = Couch.delete_doc(db, doc)
   end
 
   # test "get streaming douments" , %{url: url, dbname: dbname} do
