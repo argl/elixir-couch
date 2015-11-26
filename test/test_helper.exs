@@ -19,5 +19,42 @@
 # THE SOFTWARE.
 
 
+defmodule Couch.TestHelpers do
+
+  @dbname "elixir_couch_test"
+  @repl_dbname "elixir_couch_test2"
+  @create_dbname "elixir_couch_test3"
+
+  def clean_dbs(stuff \\ []) do
+    url = Application.get_env(:couch, :url)
+
+    server = Couch.server_connection url
+
+    db = %Couch.DB{server: server, name: @dbname}
+    db2 = %Couch.DB{server: server, name: @repl_dbname}
+    db3 = %Couch.DB{server: server, name: @repl_dbname}
+
+    Couch.delete_db(server, @dbname)
+    Couch.delete_db(server, @repl_dbname)
+    Couch.delete_db(server, @create_dbname)
+
+    stuff ++ [
+      db: db,
+      db2: db2,
+      db3: db3,
+      url: url,
+      server: server,
+      dbname: @dbname, 
+      repl_dbname: @repl_dbname, 
+      create_dbname: @create_dbname
+    ]
+  end
+
+  def create_db(stuff \\ []) do
+    {:ok, _db} = Couch.create_db(stuff[:server], stuff[:dbname])
+    stuff
+  end
+end
+
 ExUnit.start()
 

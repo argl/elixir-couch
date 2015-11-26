@@ -277,11 +277,11 @@ defmodule Couch do
     save_doc(db, doc, [], options)
   end
   def save_doc(%DB{server: server, options: opts} = db, doc, atts, options) do
-    doc_id = case Access.fetch(doc, :_id) do
-      :error ->
+    doc_id = case doc[:_id] do
+      :nil ->
         [id] = get_uuid(server)
         id
-      {:ok, id} ->
+      id ->
         Util.encode_docid(id)
     end
     url = :hackney_url.make_url(server.url, Httpc.doc_url(db, doc_id), options)
@@ -431,9 +431,53 @@ defmodule Couch do
     end
   end
 
-  # fetch_attachment
-  # stream_attachment
+
   # put_attachment
+  def put_attachment(%DB{server: server, options: opts}=db, doc_id, name, body, options) do
+    query_args = case options[:ref] do
+      nil -> []
+      rev -> [ref: rev]
+    end
+
+    headers = case options[:headers] do
+      nil -> []
+      headers -> headers
+    end
+
+    final_headers = List.foldl(options, headers, fn(option, acc) -> 
+      case option do
+        {:content_length, v} -> [{"Content-Length", Integer.ot_string(v)} | acc]
+        {:content_type, v} -> [{"Content-Type", v} | acc]
+        _ -> acc
+      end
+    end)
+
+    doc_id = Util.encode_docid(doc_id)
+    att_name = "name" #Util.enocde_att_name(name)
+    url = :hackney_url.make_url(server.url, [db.name, doc_id, att_name], query_args)
+
+    # AttName = couchbeam_util:encode_att_name(Name),
+    # Url = hackney_url:make_url(couchbeam_httpc:server_url(Server), [couchbeam_httpc:db_url(Db), DocId1,
+    #                                                 AttName],
+    #                            QueryArgs),
+
+    # case couchbeam_httpc:db_request(put, Url, FinalHeaders, Body, Opts,
+    #                                [201]) of
+    #     {ok, _, _, Ref} ->
+    #         JsonBody = couchbeam_httpc:json_body(Ref),
+    #         {[{<<"ok">>, true}|R]} = JsonBody,
+    #         {ok, {R}};
+    #     {ok, Ref} ->
+    #         {ok, Ref};
+    #     Error ->
+    #         Error
+    # end.
+  end
+
+
+  # fetch_attachment
+
+  # stream_attachment
   # send_attachment
   # delete_attachment
 
