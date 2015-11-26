@@ -389,7 +389,7 @@ defmodule Couch do
   def do_copy(db, doc_id, destination) when is_binary(doc_id) do
     do_copy(db, %{_id: doc_id, _rev: nil}, destination)
   end
-  def do_copy(db, %{_id: nil, _rev: _rev} = doc, destination) do
+  def do_copy(_db, %{_id: nil, _rev: _rev} = _doc, _destination) do
     {:error, :invalid_source}
   end
   def do_copy(%DB{server: server, options: opts}=db, %{_id: doc_id, _rev: doc_rev}, %{_id: dest_id, _rev: dest_rev}) do
@@ -406,7 +406,7 @@ defmodule Couch do
       {_, _} ->
         {headers, [{"rev", doc_rev}]}
     end
-    url = :hackney_url.make_url(server.url, Httpc.doc_url(db, doc_id), params)
+    url = :hackney_url.make_url(server.url, Httpc.doc_url(db, Util.encode_docid(doc_id)), params)
     case Httpc.db_request(:copy, url, headers, "", opts, [201]) do
       {:ok, resp} ->
         {:ok, response} = Httpc.json_body(resp, keys: :atoms)
@@ -420,6 +420,16 @@ defmodule Couch do
   
 
   # lookup_doc_rev
+  def lookup_doc_rev(%DB{server: server, options: opts}=db, doc_id, params \\ []) do
+    url = :hackney_url.make_url(server.url, Httpc.doc_url(db, Util.encode_docid(doc_id)), params)
+
+    case Httpc.db_request(:head, url, [], "", opts, [200]) do
+      {:ok, resp} ->
+        Regex.replace( Regex.compile!("\""), :hackney_headers.parse("etag", resp.headers), "")
+      error ->
+        error
+    end
+  end
 
   # fetch_attachment
   # stream_attachment

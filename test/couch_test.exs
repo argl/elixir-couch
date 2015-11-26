@@ -225,8 +225,29 @@ test "bulk save_docs, delete_docs", %{url: url, dbname: dbname} do
     assert new_doc._id == destination_doc_id
     assert new_doc._id== new_doc_id
     assert new_doc,_rev = new_ref
+    
     {:ok, _response} = Couch.delete_doc(db, doc)
     {:ok, _response} = Couch.delete_doc(db, new_doc)
+  end
+
+  test "lookup_doc_rev", %{url: url, dbname: dbname} do
+    connection = Couch.server_connection url
+    db = %Couch.DB{name: dbname, server: connection}
+    doc = %{_id: "test-document", attr: "test"}
+    if Couch.doc_exists(db, doc._id) do
+      {:ok, doc_to_delete} = Couch.open_doc(db, doc._id)      
+      {:ok, _response} = Couch.delete_doc(db, doc_to_delete)
+    end
+    {:ok, result} = Couch.save_doc(db, doc)
+    doc = Map.merge doc, %{_rev: result.rev}
+
+    looked_up_rev = Couch.lookup_doc_rev(db, doc._id)
+    assert looked_up_rev == doc._rev
+
+    result = Couch.lookup_doc_rev(db, "non-existing")
+    assert {:error, _} = result
+
+    {:ok, _response} = Couch.delete_doc(db, doc)
   end
 
   # test "get streaming douments" , %{url: url, dbname: dbname} do

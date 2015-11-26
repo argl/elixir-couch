@@ -35,11 +35,7 @@ defmodule Couch.Util do
         end
       prop when is_list(prop) ->
         case List.keyfind(prop, key, 0, default) do
-          nil -> 
-            case List.keymember?(prop, key, 0) do
-              true -> true
-              false -> default
-            end
+          ^default -> default
           {_key, value} -> value
           other when is_tuple(other) -> default
           _ -> default
