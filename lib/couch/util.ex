@@ -85,7 +85,7 @@ defmodule Couch.Util do
     end
     params = :oauth.sign(method, url, qsl, consumer, token, token_secret) -- qsl
     realm = "OAuth " <> :oauth.header_params_encode(params)
-    {"Authorization", List.to_string(realm)}
+    {"Authorization", realm}
   end
 
   def propmerge(f, l1, l2) do

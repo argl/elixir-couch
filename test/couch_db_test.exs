@@ -265,6 +265,36 @@ defmodule Couch.Test.BasicTest do
     rev2 = res.rev
     assert rev != rev2
 
+    result = Couch.fetch_attachment(db, "test", "test")
+    {:ok, attachment} = result
+    assert "test" == attachment
+    {:ok, doc} = Couch.open_doc(db, "test")
+    {:ok, resp} = Couch.delete_attachment(db, doc, "test")
+    assert doc._rev != resp.rev
+    assert match? {:error, :not_found}, Couch.fetch_attachment(db, "test", "test") 
+    {:error, :conflict} = Couch.delete_attachment(db, doc, "test")
+    doc = %{doc | _rev: resp.rev}
+    {:ok, resp} = Couch.delete_attachment(db, doc, "test")
   end
+
+  test "inline attachments", %{url: url, dbname: dbname} do
+    # TODO: inline attachments not implemented (yet)
+    # Doc3 = {[{<<"_id">>, <<"test2">>}]},
+    # Doc4 = couchbeam_attachments:add_inline(Doc3, "test", "test.txt"),
+    # Doc5 = couchbeam_attachments:add_inline(Doc4, "test2", "test2.txt"),
+    # {ok, _} = couchbeam:save_doc(Db, Doc5),
+    # {ok, Attachment1} = couchbeam:fetch_attachment(Db, "test2", "test.txt"),
+    # {ok, Attachment2} = couchbeam:fetch_attachment(Db, "test2", "test2.txt"),
+    # ?assertEqual( <<"test">>, Attachment1),
+    # ?assertEqual( <<"test2">>, Attachment2),
+    # {ok, Doc6} = couchbeam:open_doc(Db, "test2"),
+    # Doc7 = couchbeam_attachments:delete_inline(Doc6, "test2.txt"),
+    # {ok, _} = couchbeam:save_doc(Db, Doc7),
+    # ?assertEqual({error, not_found}, couchbeam:fetch_attachment(Db, "test2", "test2.txt")),
+    # {ok, Attachment4} = couchbeam:fetch_attachment(Db, "test2", "test.txt"),
+    # ?assertEqual( <<"test">>, Attachment4),
+    # {ok, Doc8} = couchbeam:save_doc(Db, {[]}),
+  end
+
 
 end

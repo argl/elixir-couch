@@ -435,8 +435,8 @@ defmodule Couch do
   # put_attachment
   def put_attachment(%DB{server: server, options: opts}=db, doc_id, name, body, options) do
     query_args = case Keyword.get(options, :rev, nil) do
+      nil -> []
       rev -> [rev: rev]
-      nil -> "bla"
     end
     headers = Keyword.get(options, :headers, [])
 
@@ -460,12 +460,75 @@ defmodule Couch do
     end
   end
 
-
   # fetch_attachment
+  def fetch_attachment(%DB{server: server, options: opts}=db, doc_id, name, options \\ []) do
+    {stream, options} = case Keyword.get(options, :stream) do
+      nil ->
+        {false, options}
+      true ->
+        {true, Keyword.delete(options, :stream)}
+      _ ->
+        {true, Keyword.delete(options, :stream)}
+    end
+
+    {options, headers} = case Keyword.get(options, :headers) do
+      nil ->
+        {options, []}
+      headers ->
+        {Keyword.delete(options, :headers), headers}
+    end
+
+    doc_id = Util.encode_docid(doc_id)
+    url = :hackney_url.make_url(server.url, [db.name, doc_id, name], options)
+
+    case HTTPoison.get(url, headers, opts) do
+      {:ok, resp} ->
+        case resp.status_code do
+          200 when stream != true ->
+            {:ok, resp.body}
+          200 ->
+            raise "streaming attachments not implemented (yet)"
+          404 ->
+            {:error, :not_found}
+        end
+      {:error, reason} ->
+        {:error, reason}
+      error ->
+        error
+    end
+  end
+
 
   # stream_attachment
   # send_attachment
   # delete_attachment
+  def delete_attachment(%DB{server: server, options: opts}=db, doc_or_doc_id, name, options \\ []) do
+    {rev, doc_id} = case doc_or_doc_id do
+      doc when is_map(doc) ->
+        {doc._rev, doc._id}
+      doc_id ->
+        {options[:_rev], doc_id}
+    end
+    case rev do
+      nil ->
+        {:error, :rev_undefined}
+      _ ->
+        options = case options[:rev] do
+          nil ->
+            Keyword.put(options, :rev, rev)
+          _ ->
+            options
+        end
+        url = :hackney_url.make_url(server.url, [db.name, doc_id, name], options)
+        case Httpc.db_request(:delete, url, [], "", opts, [200]) do
+          {:ok, resp} ->
+            {:ok, json_body} = Httpc.json_body(resp, keys: :atoms)
+            {:ok, json_body}
+          error ->
+            error
+        end
+    end
+  end
 
   # ensure_full_commit (is this in couchdb-api?)
 
