@@ -32,3 +32,4 @@ License: MIT
 * Couch.delete_docs
 * Couch.copy_doc
 * Couch.lookup_doc_ref
+* Couch.put_attachment
