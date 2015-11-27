@@ -451,7 +451,6 @@ defmodule Couch do
     doc_id = Util.encode_docid(doc_id)
     att_name = Util.encode_att_name(name)
     url = :hackney_url.make_url(server.url, [db.name, doc_id, att_name], query_args)
-    IO.inspect final_headers
     case Httpc.db_request(:put, url, final_headers, body, opts, [201]) do
       {:ok, resp} -> 
         {:ok, json_body} = Httpc.json_body(resp, keys: :atoms)
