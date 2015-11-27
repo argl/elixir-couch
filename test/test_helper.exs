@@ -21,6 +21,8 @@
 
 defmodule Couch.TestHelpers do
 
+  alias Couch.Client
+
   @dbname "elixir_couch_test"
   @repl_dbname "elixir_couch_test2"
   @create_dbname "elixir_couch_test3"
@@ -28,15 +30,15 @@ defmodule Couch.TestHelpers do
   def clean_dbs(stuff \\ []) do
     url = Application.get_env(:couch, :url)
 
-    server = Couch.server_connection url
+    server = Client.server_connection url
 
-    db = %Couch.DB{server: server, name: @dbname}
-    db2 = %Couch.DB{server: server, name: @repl_dbname}
-    db3 = %Couch.DB{server: server, name: @repl_dbname}
+    db = %Client.DB{server: server, name: @dbname}
+    db2 = %Client.DB{server: server, name: @repl_dbname}
+    db3 = %Client.DB{server: server, name: @repl_dbname}
 
-    Couch.delete_db(server, @dbname)
-    Couch.delete_db(server, @repl_dbname)
-    Couch.delete_db(server, @create_dbname)
+    Client.delete_db(server, @dbname)
+    Client.delete_db(server, @repl_dbname)
+    Client.delete_db(server, @create_dbname)
 
     stuff ++ [
       db: db,
@@ -51,7 +53,7 @@ defmodule Couch.TestHelpers do
   end
 
   def create_db(stuff \\ []) do
-    {:ok, _db} = Couch.create_db(stuff[:server], stuff[:dbname])
+    {:ok, _db} = Client.create_db(stuff[:server], stuff[:dbname])
     stuff
   end
 end

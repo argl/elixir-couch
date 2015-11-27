@@ -22,6 +22,7 @@ defmodule Couch.Test.BasicTest do
   use ExUnit.Case
   doctest Couch
 
+  alias Couch.Client
   alias Couch.TestHelpers
 
   setup do
@@ -31,60 +32,60 @@ defmodule Couch.Test.BasicTest do
   end
 
   test "server_connection via url", %{url: url} do
-    assert Couch.server_connection == %Couch.Server{url: "http://127.0.0.1:5984/"}
-    assert Couch.server_connection("http://127.0.0.1:5984") == %Couch.Server{url: "http://127.0.0.1:5984/"}
-    assert Couch.server_connection("http://127.0.0.1:5984", [bla: 123]) == %Couch.Server{url: "http://127.0.0.1:5984/", options: [bla: 123]}
-    assert Couch.server_connection url
+    assert Client.server_connection == %Client.Server{url: "http://127.0.0.1:5984/"}
+    assert Client.server_connection("http://127.0.0.1:5984") == %Client.Server{url: "http://127.0.0.1:5984/"}
+    assert Client.server_connection("http://127.0.0.1:5984", [bla: 123]) == %Client.Server{url: "http://127.0.0.1:5984/", options: [bla: 123]}
+    assert Client.server_connection url
   end
 
   test "server_connection via host, port etc" do
-    assert Couch.server_connection("localhost", 5984) == %Couch.Server{url: "http://localhost:5984/"}
-    assert Couch.server_connection("localhost", 443) == %Couch.Server{url: "https://localhost:443/"}
-    assert Couch.server_connection("localhost", 4430, "", [is_ssl: true]) == %Couch.Server{url: "https://localhost:4430/", options: [is_ssl: true]}
-    assert Couch.server_connection("localhost", 4430, "prefix", [is_ssl: true]) == %Couch.Server{url: "https://localhost:4430/prefix/", options: [is_ssl: true]}
+    assert Client.server_connection("localhost", 5984) == %Client.Server{url: "http://localhost:5984/"}
+    assert Client.server_connection("localhost", 443) == %Client.Server{url: "https://localhost:443/"}
+    assert Client.server_connection("localhost", 4430, "", [is_ssl: true]) == %Client.Server{url: "https://localhost:4430/", options: [is_ssl: true]}
+    assert Client.server_connection("localhost", 4430, "prefix", [is_ssl: true]) == %Client.Server{url: "https://localhost:4430/prefix/", options: [is_ssl: true]}
   end
 
   test "server_info", %{url: url} do
-    connection = Couch.server_connection url
-    {:ok, resp} = Couch.server_info(connection)
+    connection = Client.server_connection url
+    {:ok, resp} = Client.server_info(connection)
     assert resp.couchdb == "Welcome"
     assert resp.version
   end
 
   test "get_uuid", %{url: url} do
-    connection = Couch.server_connection url
-    uuids = Couch.get_uuid(connection, 10)
+    connection = Client.server_connection url
+    uuids = Client.get_uuid(connection, 10)
     assert length(uuids) == 10
     assert String.length(hd(uuids)) == 32
   end
 
   test "replicate", %{url: url, dbname: dbname, repl_dbname: repl_dbname} do
-    connection = Couch.server_connection url
+    connection = Client.server_connection url
     repl_obj = %{source: dbname, target: repl_dbname, create_target: true}
-    {:ok, resp} = Couch.replicate(connection, repl_obj)
+    {:ok, resp} = Client.replicate(connection, repl_obj)
     assert resp.ok == true
 
     repl_obj = %{source: "non existing db", target: repl_dbname, create_target: true}
-    assert {:error, _} = Couch.replicate(connection, repl_obj)
+    assert {:error, _} = Client.replicate(connection, repl_obj)
   end
 
   test "replicate shortcuts", %{url: url, dbname: dbname, repl_dbname: repl_dbname} do
-    connection = Couch.server_connection url
-    db1 = %Couch.DB{server: connection, name: dbname}
-    db2 = %Couch.DB{server: connection, name: repl_dbname}
-    {:ok, resp} = Couch.replicate(connection, dbname, repl_dbname, %{create_target: true})
+    connection = Client.server_connection url
+    db1 = %Client.DB{server: connection, name: dbname}
+    db2 = %Client.DB{server: connection, name: repl_dbname}
+    {:ok, resp} = Client.replicate(connection, dbname, repl_dbname, %{create_target: true})
     assert resp.ok == true
-    {:ok, resp} = Couch.replicate(connection, db1, repl_dbname, %{create_target: true})
+    {:ok, resp} = Client.replicate(connection, db1, repl_dbname, %{create_target: true})
     assert resp.ok == true
-    {:ok, resp} = Couch.replicate(connection, dbname, db2, %{create_target: true})
+    {:ok, resp} = Client.replicate(connection, dbname, db2, %{create_target: true})
     assert resp.ok == true
-    {:ok, resp} = Couch.replicate(connection, db1, db2, %{create_target: true})
+    {:ok, resp} = Client.replicate(connection, db1, db2, %{create_target: true})
     assert resp.ok == true
   end
 
   test "all_dbs", %{url: url} do
-    connection = Couch.server_connection url
-    result = Couch.all_dbs(connection)
+    connection = Client.server_connection url
+    result = Client.all_dbs(connection)
     assert {:ok, resp} = result
     assert is_list(resp) == true
     assert length(resp) > 1
@@ -92,195 +93,195 @@ defmodule Couch.Test.BasicTest do
   end
 
   test "db_exists", %{url: url, dbname: dbname} do
-    connection = Couch.server_connection url
-    result = Couch.db_exists(connection, dbname)
+    connection = Client.server_connection url
+    result = Client.db_exists(connection, dbname)
     assert result
-    result = Couch.db_exists(connection, "non existing db")
+    result = Client.db_exists(connection, "non existing db")
     assert !result
   end
 
   test "create_db, delete_db", %{url: url, create_dbname: create_dbname} do
-    connection = Couch.server_connection url
+    connection = Client.server_connection url
 
-    if Couch.db_exists(connection, create_dbname) do
+    if Client.db_exists(connection, create_dbname) do
       # this is not pretty. delete_db is not tested at this point
       # testing against a mock would prevent this situation. oh my.
-      Couch.delete_db(connection, create_dbname)
+      Client.delete_db(connection, create_dbname)
     end
 
-    assert {:ok, db} = Couch.create_db(connection, create_dbname)
+    assert {:ok, db} = Client.create_db(connection, create_dbname)
     assert db.server == connection
     assert db.name == create_dbname
-    assert {:error, :db_exists} = Couch.create_db(connection, create_dbname)
+    assert {:error, :db_exists} = Client.create_db(connection, create_dbname)
  
-    assert {:ok, response} = Couch.delete_db(connection, create_dbname)
+    assert {:ok, response} = Client.delete_db(connection, create_dbname)
     assert response.ok
-    assert {:error, :not_found} = Couch.delete_db(connection, create_dbname)
-    assert !Couch.db_exists(connection, create_dbname)
+    assert {:error, :not_found} = Client.delete_db(connection, create_dbname)
+    assert !Client.db_exists(connection, create_dbname)
   end
 
   test "open_db", %{url: url, create_dbname: create_dbname} do
-    connection = Couch.server_connection url
-    if Couch.db_exists(connection, create_dbname) do
-      Couch.delete_db(connection, create_dbname)
+    connection = Client.server_connection url
+    if Client.db_exists(connection, create_dbname) do
+      Client.delete_db(connection, create_dbname)
     end
-    {:ok, db} = Couch.open_db(connection, create_dbname)
+    {:ok, db} = Client.open_db(connection, create_dbname)
     assert db.server == connection
     assert db.name == create_dbname
   end
 
   test "open_or_create_db", %{url: url, create_dbname: create_dbname} do
-    connection = Couch.server_connection url
-    if Couch.db_exists(connection, create_dbname) do
-      Couch.delete_db(connection, create_dbname)
+    connection = Client.server_connection url
+    if Client.db_exists(connection, create_dbname) do
+      Client.delete_db(connection, create_dbname)
     end
-    {:ok, db} = Couch.open_or_create_db(connection, create_dbname)
+    {:ok, db} = Client.open_or_create_db(connection, create_dbname)
     assert db.server == connection
     assert db.name == create_dbname
-    assert Couch.db_exists(connection, create_dbname)
+    assert Client.db_exists(connection, create_dbname)
   end
 
   test "db_info", %{url: url, dbname: dbname} do
-    connection = Couch.server_connection url
-    {:ok, db} = Couch.open_db(connection, dbname)
-    {:ok, infos} = Couch.db_info(db)
+    connection = Client.server_connection url
+    {:ok, db} = Client.open_db(connection, dbname)
+    {:ok, infos} = Client.db_info(db)
     assert infos.db_name == dbname
 
-    {:ok, db} = Couch.open_db(connection, "non-exisiting-db")
-    assert {:error, :db_not_found} = Couch.db_info(db)
+    {:ok, db} = Client.open_db(connection, "non-exisiting-db")
+    assert {:error, :db_not_found} = Client.db_info(db)
   end
 
   test "doc_exist", %{url: url} do
-    connection = Couch.server_connection url
-    db = %Couch.DB{name: "_replicator", server: connection}
-    assert Couch.doc_exists(db, "_design/_replicator")
-    assert !Couch.doc_exists(db, "_design/nothing_here")
+    connection = Client.server_connection url
+    db = %Client.DB{name: "_replicator", server: connection}
+    assert Client.doc_exists(db, "_design/_replicator")
+    assert !Client.doc_exists(db, "_design/nothing_here")
   end
 
   test "open_doc", %{url: url} do
-    connection = Couch.server_connection url
-    db = %Couch.DB{name: "_replicator", server: connection}
-    {:ok, doc} = Couch.open_doc(db, "_design/_replicator")
+    connection = Client.server_connection url
+    db = %Client.DB{name: "_replicator", server: connection}
+    {:ok, doc} = Client.open_doc(db, "_design/_replicator")
     assert doc._id == "_design/_replicator"
     assert doc._rev
-    {:error, :not_found} = Couch.open_doc(db, "_design/non-existing")
+    {:error, :not_found} = Client.open_doc(db, "_design/non-existing")
   end
 
   test "save_doc, delete_doc", %{url: url, dbname: dbname} do
-    connection = Couch.server_connection url
-    db = %Couch.DB{name: dbname, server: connection}
+    connection = Client.server_connection url
+    db = %Client.DB{name: dbname, server: connection}
     doc = %{_id: "test-document", attr: "test"}
-    if Couch.doc_exists(db, doc._id) do
-      {:ok, doc_to_delete} = Couch.open_doc(db, doc._id)      
-      {:ok, _response} = Couch.delete_doc(db, doc_to_delete)
+    if Client.doc_exists(db, doc._id) do
+      {:ok, doc_to_delete} = Client.open_doc(db, doc._id)      
+      {:ok, _response} = Client.delete_doc(db, doc_to_delete)
     end
-    result = Couch.save_doc(db, doc)
+    result = Client.save_doc(db, doc)
     assert {:ok, saved} = result
     assert saved.id == doc._id
     assert saved.rev
 
-    result = Couch.save_doc(db, doc)
+    result = Client.save_doc(db, doc)
     assert {:error, :conflict} = result
-    result = Couch.delete_doc(db, doc)
+    result = Client.delete_doc(db, doc)
     assert {:ok, _deleted} = result
 
     doc = %{_id: "~!@#$%^&*()_+-=[]{}|;':,./<> ?"}
-    {:ok, _} = Couch.save_doc(db, doc)
-    {:ok, doc_read} = Couch.open_doc(db, "~!@#$%^&*()_+-=[]{}|;':,./<> ?")
+    {:ok, _} = Client.save_doc(db, doc)
+    {:ok, doc_read} = Client.open_doc(db, "~!@#$%^&*()_+-=[]{}|;':,./<> ?")
     assert "~!@#$%^&*()_+-=[]{}|;':,./<> ?" == doc_read._id
 
   end
 
   test "bulk save_docs, delete_docs", %{url: url, dbname: dbname} do
-    connection = Couch.server_connection url
-    db = %Couch.DB{name: dbname, server: connection}
+    connection = Client.server_connection url
+    db = %Client.DB{name: dbname, server: connection}
     docs = [%{_id: "test-document1", attr: "test"}, %{_id: "test-document2", attr: "test"}]
     Enum.each(docs, fn(doc) -> 
-      if Couch.doc_exists(db, doc._id) do
-        {:ok, doc_to_delete} = Couch.open_doc(db, doc._id)
-        {:ok, _response} = Couch.delete_doc(db, doc_to_delete)
+      if Client.doc_exists(db, doc._id) do
+        {:ok, doc_to_delete} = Client.open_doc(db, doc._id)
+        {:ok, _response} = Client.delete_doc(db, doc_to_delete)
       end
     end)
-    result = Couch.save_docs(db, docs)
+    result = Client.save_docs(db, docs)
     assert {:ok, _saved} = result
-    result = Couch.save_doc(db, hd(docs))
+    result = Client.save_doc(db, hd(docs))
     assert {:error, :conflict} = result
 
-    {:ok, doc1} = Couch.open_doc(db, "test-document1")
-    {:ok, doc2} = Couch.open_doc(db, "test-document2")
-    assert {:ok, _deleted} = Couch.delete_docs(db, [doc1, doc2])
-    assert {:error, :not_found} = Couch.open_doc(db, "test-document1")
+    {:ok, doc1} = Client.open_doc(db, "test-document1")
+    {:ok, doc2} = Client.open_doc(db, "test-document2")
+    assert {:ok, _deleted} = Client.delete_docs(db, [doc1, doc2])
+    assert {:error, :not_found} = Client.open_doc(db, "test-document1")
   end
 
   test "copy_doc", %{url: url, dbname: dbname} do
-    connection = Couch.server_connection url
-    db = %Couch.DB{name: dbname, server: connection}
+    connection = Client.server_connection url
+    db = %Client.DB{name: dbname, server: connection}
     doc = %{_id: "test-document", attr: "test"}
     destination_doc_id = "new-doc-id"
-    if Couch.doc_exists(db, doc._id) do
-      {:ok, doc_to_delete} = Couch.open_doc(db, doc._id)      
-      {:ok, _response} = Couch.delete_doc(db, doc_to_delete)
+    if Client.doc_exists(db, doc._id) do
+      {:ok, doc_to_delete} = Client.open_doc(db, doc._id)      
+      {:ok, _response} = Client.delete_doc(db, doc_to_delete)
     end
-    if Couch.doc_exists(db, "new-doc-id") do
-      {:ok, doc_to_delete} = Couch.open_doc(db, destination_doc_id)      
-      {:ok, _response} = Couch.delete_doc(db, doc_to_delete)
+    if Client.doc_exists(db, "new-doc-id") do
+      {:ok, doc_to_delete} = Client.open_doc(db, destination_doc_id)      
+      {:ok, _response} = Client.delete_doc(db, doc_to_delete)
     end
-    {:ok, result} = Couch.save_doc(db, doc)
+    {:ok, result} = Client.save_doc(db, doc)
     doc = Map.merge doc, %{_rev: result.rev}
 
-    result = Couch.copy_doc(db, doc._id, destination_doc_id)
+    result = Client.copy_doc(db, doc._id, destination_doc_id)
     assert {:ok, new_doc_id, new_ref} = result
-    {:ok, new_doc} = Couch.open_doc(db, destination_doc_id)
+    {:ok, new_doc} = Client.open_doc(db, destination_doc_id)
     assert new_doc._id == destination_doc_id
     assert new_doc._id== new_doc_id
     assert new_doc,_rev = new_ref
   end
 
   test "lookup_doc_rev", %{url: url, dbname: dbname} do
-    connection = Couch.server_connection url
-    db = %Couch.DB{name: dbname, server: connection}
+    connection = Client.server_connection url
+    db = %Client.DB{name: dbname, server: connection}
     doc = %{_id: "test-document", attr: "test"}
-    if Couch.doc_exists(db, doc._id) do
-      {:ok, doc_to_delete} = Couch.open_doc(db, doc._id)      
-      {:ok, _response} = Couch.delete_doc(db, doc_to_delete)
+    if Client.doc_exists(db, doc._id) do
+      {:ok, doc_to_delete} = Client.open_doc(db, doc._id)      
+      {:ok, _response} = Client.delete_doc(db, doc_to_delete)
     end
-    {:ok, result} = Couch.save_doc(db, doc)
+    {:ok, result} = Client.save_doc(db, doc)
     doc = Map.merge doc, %{_rev: result.rev}
 
-    looked_up_rev = Couch.lookup_doc_rev(db, doc._id)
+    looked_up_rev = Client.lookup_doc_rev(db, doc._id)
     assert looked_up_rev == doc._rev
 
-    result = Couch.lookup_doc_rev(db, "non-existing")
+    result = Client.lookup_doc_rev(db, "non-existing")
     assert {:error, _} = result
   end
 
   test "put_attachment, fetch_attachment", %{url: url, dbname: dbname} do
-    connection = Couch.server_connection url
-    db = %Couch.DB{name: dbname, server: connection}
+    connection = Client.server_connection url
+    db = %Client.DB{name: dbname, server: connection}
 
     doc = %{_id: "test"}
-    {:ok, res} = Couch.save_doc(db, doc)
+    {:ok, res} = Client.save_doc(db, doc)
     rev = res.rev
-    {:ok, res} = Couch.put_attachment(db, "test", "test", "test", [bla: 123, rev: rev])
+    {:ok, res} = Client.put_attachment(db, "test", "test", "test", [bla: 123, rev: rev])
     rev2 = res.rev
     assert rev != rev2
 
-    result = Couch.fetch_attachment(db, "test", "test")
+    result = Client.fetch_attachment(db, "test", "test")
     {:ok, attachment} = result
     assert "test" == attachment
-    {:ok, doc} = Couch.open_doc(db, "test")
-    {:ok, resp} = Couch.delete_attachment(db, doc, "test")
+    {:ok, doc} = Client.open_doc(db, "test")
+    {:ok, resp} = Client.delete_attachment(db, doc, "test")
     assert doc._rev != resp.rev
-    assert match? {:error, :not_found}, Couch.fetch_attachment(db, "test", "test") 
-    {:error, :conflict} = Couch.delete_attachment(db, doc, "test")
+    assert match? {:error, :not_found}, Client.fetch_attachment(db, "test", "test") 
+    {:error, :conflict} = Client.delete_attachment(db, doc, "test")
     doc = %{doc | _rev: resp.rev}
-    {:ok, _resp} = Couch.delete_attachment(db, doc, "test")
+    {:ok, _resp} = Client.delete_attachment(db, doc, "test")
   end
 
   test "compact", %{url: url, dbname: dbname} do
-    connection = Couch.server_connection url
-    db = %Couch.DB{name: dbname, server: connection}
-    assert match? :ok, Couch.compact(db)
+    connection = Client.server_connection url
+    db = %Client.DB{name: dbname, server: connection}
+    assert match? :ok, Client.compact(db)
   end
 
   # test "inline attachments", %{url: url, dbname: dbname} do
@@ -301,6 +302,5 @@ defmodule Couch.Test.BasicTest do
     # ?assertEqual( <<"test">>, Attachment4),
     # {ok, Doc8} = couchbeam:save_doc(Db, {[]}),
   # end
-
 
 end

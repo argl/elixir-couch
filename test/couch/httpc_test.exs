@@ -22,15 +22,18 @@
 defmodule Couch.Test.HttpcTest do
   use ExUnit.Case
 
+  alias Couch.Client
+  alias Couch.Httpc
+
   test "json_body" do
-    assert Couch.Httpc.json_body( %HTTPoison.Response{body: "{\"id\": 123}"} ) == {:ok, %{"id" => 123}}
-    assert Couch.Httpc.json_body( %HTTPoison.Response{body: "invalid"} ) == {:error, {:invalid, "i"}}
+    assert Httpc.json_body( %HTTPoison.Response{body: "{\"id\": 123}"} ) == {:ok, %{"id" => 123}}
+    assert Httpc.json_body( %HTTPoison.Response{body: "invalid"} ) == {:error, {:invalid, "i"}}
   end
 
   test "doc_url" do
-    db = %Couch.DB{name: "database"}
+    db = %Client.DB{name: "database"}
     docid = "docid"
-    assert Couch.Httpc.doc_url(db, docid) == "database/docid"
+    assert Httpc.doc_url(db, docid) == "database/docid"
   end
 
   test "request" do
