@@ -24,7 +24,7 @@ defmodule Couch do
   use Application
 
   def start(_type, _args) do
-    # Couch.Supervisor.start_link
+    Couch.Supervisor.start_link
   end
 
 end

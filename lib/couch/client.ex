@@ -537,7 +537,7 @@ defmodule Couch.Client do
     url = :hackney_url.make_url(server.url, [db.name, "_compact"], [])
     headers = ["Content-Type": "application/json"]
     case Httpc.db_request(:post, url, headers, "", opts, [202]) do
-      {:ok, resp} ->
+      {:ok, _resp} ->
         :ok
       error ->
         error
@@ -549,7 +549,7 @@ defmodule Couch.Client do
     url = :hackney_url.make_url(server.url, [db.name, "_compact", design_name], [])
     headers = ["Content-Type": "application/json"]
     case Httpc.db_request(:post, url, headers, "", opts, [202]) do
-      {:ok, resp} ->
+      {:ok, _resp} ->
         :ok
       error ->
         error
