@@ -53,6 +53,9 @@ defmodule Couch.Util do
     end
   end
 
+  def encode_att_name(name) do
+    :hackney_url.urlencode(name, [:noplus])
+  end
 
   def oauth_header(url, action, oauth_props) do
     {_, _, _, _, _, _, qs, _, _, _, _, _} = :hackney_url.parse_url(url)

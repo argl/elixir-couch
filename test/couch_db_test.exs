@@ -261,7 +261,8 @@ defmodule Couch.Test.BasicTest do
     doc = %{_id: "test"}
     {:ok, res} = Couch.save_doc(db, doc)
     rev = res.rev
-    #{:ok, res} = Couch.put_attachment(db, "test", "test", "test", [rev: rev])
+    {:ok, res} = Couch.put_attachment(db, "test", "test", "test", [bla: 123, rev: rev])
+    IO.inspect res
     #rev2 = res.rev
     #assert rev != rev2
 

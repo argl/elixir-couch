@@ -434,15 +434,11 @@ defmodule Couch do
 
   # put_attachment
   def put_attachment(%DB{server: server, options: opts}=db, doc_id, name, body, options) do
-    query_args = case options[:ref] do
-      nil -> []
-      rev -> [ref: rev]
+    query_args = case Keyword.get(options, :rev, nil) do
+      rev -> [rev: rev]
+      nil -> "bla"
     end
-
-    headers = case options[:headers] do
-      nil -> []
-      headers -> headers
-    end
+    headers = Keyword.get(options, :headers, [])
 
     final_headers = List.foldl(options, headers, fn(option, acc) -> 
       case option do
@@ -453,25 +449,16 @@ defmodule Couch do
     end)
 
     doc_id = Util.encode_docid(doc_id)
-    att_name = "name" #Util.enocde_att_name(name)
+    att_name = Util.encode_att_name(name)
     url = :hackney_url.make_url(server.url, [db.name, doc_id, att_name], query_args)
-
-    # AttName = couchbeam_util:encode_att_name(Name),
-    # Url = hackney_url:make_url(couchbeam_httpc:server_url(Server), [couchbeam_httpc:db_url(Db), DocId1,
-    #                                                 AttName],
-    #                            QueryArgs),
-
-    # case couchbeam_httpc:db_request(put, Url, FinalHeaders, Body, Opts,
-    #                                [201]) of
-    #     {ok, _, _, Ref} ->
-    #         JsonBody = couchbeam_httpc:json_body(Ref),
-    #         {[{<<"ok">>, true}|R]} = JsonBody,
-    #         {ok, {R}};
-    #     {ok, Ref} ->
-    #         {ok, Ref};
-    #     Error ->
-    #         Error
-    # end.
+    IO.inspect final_headers
+    case Httpc.db_request(:put, url, final_headers, body, opts, [201]) do
+      {:ok, resp} -> 
+        {:ok, json_body} = Httpc.json_body(resp, keys: :atoms)
+        {:ok, json_body}
+      error ->
+        error
+    end
   end
 
 
