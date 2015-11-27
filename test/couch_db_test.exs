@@ -274,10 +274,16 @@ defmodule Couch.Test.BasicTest do
     assert match? {:error, :not_found}, Couch.fetch_attachment(db, "test", "test") 
     {:error, :conflict} = Couch.delete_attachment(db, doc, "test")
     doc = %{doc | _rev: resp.rev}
-    {:ok, resp} = Couch.delete_attachment(db, doc, "test")
+    {:ok, _resp} = Couch.delete_attachment(db, doc, "test")
   end
 
-  test "inline attachments", %{url: url, dbname: dbname} do
+  test "compact", %{url: url, dbname: dbname} do
+    connection = Couch.server_connection url
+    db = %Couch.DB{name: dbname, server: connection}
+    assert match? :ok, Couch.compact(db)
+  end
+
+  # test "inline attachments", %{url: url, dbname: dbname} do
     # TODO: inline attachments not implemented (yet)
     # Doc3 = {[{<<"_id">>, <<"test2">>}]},
     # Doc4 = couchbeam_attachments:add_inline(Doc3, "test", "test.txt"),
@@ -294,7 +300,7 @@ defmodule Couch.Test.BasicTest do
     # {ok, Attachment4} = couchbeam:fetch_attachment(Db, "test2", "test.txt"),
     # ?assertEqual( <<"test">>, Attachment4),
     # {ok, Doc8} = couchbeam:save_doc(Db, {[]}),
-  end
+  # end
 
 
 end

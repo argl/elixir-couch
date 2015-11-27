@@ -35,3 +35,4 @@ License: MIT
 * Couch.put_attachment
 * Couch.fetch_attachment
 * Couch.delete_attachment
+* Couch.compact

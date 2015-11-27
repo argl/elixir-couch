@@ -498,9 +498,9 @@ defmodule Couch do
     end
   end
 
-
   # stream_attachment
   # send_attachment
+
   # delete_attachment
   def delete_attachment(%DB{server: server, options: opts}=db, doc_or_doc_id, name, options \\ []) do
     {rev, doc_id} = case doc_or_doc_id do
@@ -532,7 +532,30 @@ defmodule Couch do
 
   # ensure_full_commit (is this in couchdb-api?)
 
-  # compact
+  #compact database
+  def compact(%DB{server: server, options: opts}=db) do
+    url = :hackney_url.make_url(server.url, [db.name, "_compact"], [])
+    headers = ["Content-Type": "application/json"]
+    case Httpc.db_request(:post, url, headers, "", opts, [202]) do
+      {:ok, resp} ->
+        :ok
+      error ->
+        error
+    end
+  end
+
+  # compact views
+  def compact(%DB{server: server, options: opts}=db, design_name) do
+    url = :hackney_url.make_url(server.url, [db.name, "_compact", design_name], [])
+    headers = ["Content-Type": "application/json"]
+    case Httpc.db_request(:post, url, headers, "", opts, [202]) do
+      {:ok, resp} ->
+        :ok
+      error ->
+        error
+    end
+  end
+
   # get_missing_revs
 
   ## PRIVATE
