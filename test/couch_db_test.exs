@@ -103,12 +103,6 @@ defmodule Couch.Test.BasicTest do
   test "create_db, delete_db", %{url: url, create_dbname: create_dbname} do
     connection = Client.server_connection url
 
-    if Client.db_exists(connection, create_dbname) do
-      # this is not pretty. delete_db is not tested at this point
-      # testing against a mock would prevent this situation. oh my.
-      Client.delete_db(connection, create_dbname)
-    end
-
     assert {:ok, db} = Client.create_db(connection, create_dbname)
     assert db.server == connection
     assert db.name == create_dbname
@@ -122,9 +116,6 @@ defmodule Couch.Test.BasicTest do
 
   test "open_db", %{url: url, create_dbname: create_dbname} do
     connection = Client.server_connection url
-    if Client.db_exists(connection, create_dbname) do
-      Client.delete_db(connection, create_dbname)
-    end
     {:ok, db} = Client.open_db(connection, create_dbname)
     assert db.server == connection
     assert db.name == create_dbname
@@ -132,9 +123,6 @@ defmodule Couch.Test.BasicTest do
 
   test "open_or_create_db", %{url: url, create_dbname: create_dbname} do
     connection = Client.server_connection url
-    if Client.db_exists(connection, create_dbname) do
-      Client.delete_db(connection, create_dbname)
-    end
     {:ok, db} = Client.open_or_create_db(connection, create_dbname)
     assert db.server == connection
     assert db.name == create_dbname
@@ -171,10 +159,6 @@ defmodule Couch.Test.BasicTest do
     connection = Client.server_connection url
     db = %Client.DB{name: dbname, server: connection}
     doc = %{_id: "test-document", attr: "test"}
-    if Client.doc_exists(db, doc._id) do
-      {:ok, doc_to_delete} = Client.open_doc(db, doc._id)      
-      {:ok, _response} = Client.delete_doc(db, doc_to_delete)
-    end
     result = Client.save_doc(db, doc)
     assert {:ok, saved} = result
     assert saved.id == doc._id
@@ -196,12 +180,6 @@ defmodule Couch.Test.BasicTest do
     connection = Client.server_connection url
     db = %Client.DB{name: dbname, server: connection}
     docs = [%{_id: "test-document1", attr: "test"}, %{_id: "test-document2", attr: "test"}]
-    Enum.each(docs, fn(doc) -> 
-      if Client.doc_exists(db, doc._id) do
-        {:ok, doc_to_delete} = Client.open_doc(db, doc._id)
-        {:ok, _response} = Client.delete_doc(db, doc_to_delete)
-      end
-    end)
     result = Client.save_docs(db, docs)
     assert {:ok, _saved} = result
     result = Client.save_doc(db, hd(docs))
@@ -218,14 +196,6 @@ defmodule Couch.Test.BasicTest do
     db = %Client.DB{name: dbname, server: connection}
     doc = %{_id: "test-document", attr: "test"}
     destination_doc_id = "new-doc-id"
-    if Client.doc_exists(db, doc._id) do
-      {:ok, doc_to_delete} = Client.open_doc(db, doc._id)      
-      {:ok, _response} = Client.delete_doc(db, doc_to_delete)
-    end
-    if Client.doc_exists(db, "new-doc-id") do
-      {:ok, doc_to_delete} = Client.open_doc(db, destination_doc_id)      
-      {:ok, _response} = Client.delete_doc(db, doc_to_delete)
-    end
     {:ok, result} = Client.save_doc(db, doc)
     doc = Map.merge doc, %{_rev: result.rev}
 
@@ -241,10 +211,6 @@ defmodule Couch.Test.BasicTest do
     connection = Client.server_connection url
     db = %Client.DB{name: dbname, server: connection}
     doc = %{_id: "test-document", attr: "test"}
-    if Client.doc_exists(db, doc._id) do
-      {:ok, doc_to_delete} = Client.open_doc(db, doc._id)      
-      {:ok, _response} = Client.delete_doc(db, doc_to_delete)
-    end
     {:ok, result} = Client.save_doc(db, doc)
     doc = Map.merge doc, %{_rev: result.rev}
 
@@ -302,5 +268,66 @@ defmodule Couch.Test.BasicTest do
     # ?assertEqual( <<"test">>, Attachment4),
     # {ok, Doc8} = couchbeam:save_doc(Db, {[]}),
   # end
+
+  test "all_docs", %{url: url, dbname: dbname} do
+    connection = Client.server_connection url
+    db = %Client.DB{name: dbname, server: connection}
+    {:ok, resp} = Client.all_docs(db)
+    assert resp.total_rows == 0
+    assert resp.rows == []
+    assert resp.offset == 0
+
+    doc = %{_id: "test-document", attr: "test"}
+    {:ok, resp} = Client.save_doc(db, doc)
+    doc = Map.merge doc, %{_rev: resp.rev}
+
+    {:ok, resp} = Client.all_docs(db)
+    assert resp.total_rows == 1
+    assert length(resp.rows) == 1
+    assert resp.offset == 0
+    assert hd(resp.rows).id == doc._id
+    assert hd(resp.rows).value.rev == doc._rev
+
+    {:ok, resp} = Client.all_docs(db, [skip: 1])
+    assert resp.total_rows == 1
+    assert length(resp.rows) == 0
+    assert resp.offset == 1
+  end
+
+  test "fetch_view", %{url: url, dbname: dbname} do
+    connection = Client.server_connection url
+    db = %Client.DB{name: dbname, server: connection}
+    design_doc = %{
+      _id: "_design/test", 
+      language: "javascript",
+      views: %{
+        test_view_1: %{
+          map: "function(doc) { if (doc.type == \"test\") { emit(doc._id, doc); } }"
+        },
+        test_view_2: %{
+          map: "function(doc) { if (doc.type == \"test2\") { emit(doc._id, doc); } }"
+        }
+      }
+    }
+    {:ok, _} = Client.save_doc(db, design_doc)
+
+    docs = [
+      %{_id: "test-document", type: "test"},
+      %{_id: "test-document2", type: "test"},
+      %{_id: "test-document3", type: "test2"}
+    ]
+    {:ok, _} = Client.save_docs(db, docs)
+
+    {:ok, resp} = Client.fetch_view(db, "test", "test_view_1")
+    assert resp.total_rows == 2
+    assert length(resp.rows) == 2
+    assert hd(resp.rows).id == hd(docs)._id
+
+    {:ok, resp} = Client.fetch_view(db, "test", "test_view_2")
+    assert resp.total_rows == 1
+    assert length(resp.rows) == 1
+    assert hd(resp.rows).id == hd(Enum.reverse(docs))._id
+
+  end
 
 end

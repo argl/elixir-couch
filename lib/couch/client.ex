@@ -539,6 +539,31 @@ defmodule Couch.Client do
     end
   end
 
+  # get all docs
+  def all_docs(%DB{server: server, options: opts}=db, options \\ []) do
+    url = :hackney_url.make_url(server.url, [db.name, "_all_docs"], options)
+    headers = ["Content-Type": "application/json"]
+    case Httpc.db_request(:get, url, headers, "", opts, [200]) do
+      {:ok, resp} ->
+        {:ok, json_body} = Httpc.json_body(resp, keys: :atoms)
+        {:ok, json_body}
+      error ->
+        error
+    end
+  end
+
+  def fetch_view(%DB{server: server, options: opts}=db, design_name, view_name, options \\ []) do
+    url = :hackney_url.make_url(server.url, [db.name, "_design", design_name, "_view", view_name], options)
+    headers = ["Content-Type": "application/json"]
+    case Httpc.db_request(:get, url, headers, "", opts, [200]) do
+      {:ok, resp} ->
+        {:ok, json_body} = Httpc.json_body(resp, keys: :atoms)
+        {:ok, json_body}
+      error ->
+        error
+    end
+  end
+
   # Missing calls:
 
   # stream_attachment
