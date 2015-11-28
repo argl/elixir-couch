@@ -11,7 +11,7 @@ are implemented. Don't go away to see the project evolve (or me fail).
 
 License: MIT
 
-## API parts most probably working:
+## API:
 
 * Couch.server_connection
 * Couch.server_info
@@ -36,3 +36,5 @@ License: MIT
 * Couch.fetch_attachment
 * Couch.delete_attachment
 * Couch.compact
+* Couch.all_docs
+* Couch.fetch_view
