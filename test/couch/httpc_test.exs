@@ -36,16 +36,4 @@ defmodule Couch.Test.HttpcTest do
     assert Httpc.doc_url(db, docid) == "database/docid"
   end
 
-  test "request" do
-  end
-
-  test "db_request" do
-  end
-
-  test "db_resp" do
-  end
-
-  test "make_headers" do
-  end
-
 end
