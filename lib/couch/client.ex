@@ -87,10 +87,7 @@ defmodule Couch.Client do
     Couch.UUIDs.get_uuids(server, count)
   end
 
-
-  # Handle replication. Pass an object containting all informations
-  # It allows to pass for example an authentication info
-  # rep_obj = %{source: "sourcedb", target: "targetdb", create_target: true}
+  # replicate
   def replicate(server, rep_obj) do
     url = :hackney_url.make_url(server.url, ["_replicate"], [])
     headers = [{"Content-Type", "application/json"}]
@@ -125,12 +122,6 @@ defmodule Couch.Client do
     rep_obj = Map.merge options, %{ source: source, target: target }
     replicate(server, rep_obj)
   end
-
-
-  # TODO
-  # get_config
-  # set_config
-  # delete_config
 
   # all_dbs
   def all_dbs(%Server{url: server_url, options: opts}) do
@@ -268,9 +259,6 @@ defmodule Couch.Client do
         error
     end
   end
-
-  # stream_doc
-  # end_doc_stream
 
   # save_doc
   def save_doc(db, doc, options \\ []) do
@@ -498,9 +486,6 @@ defmodule Couch.Client do
     end
   end
 
-  # stream_attachment
-  # send_attachment
-
   # delete_attachment
   def delete_attachment(%DB{server: server, options: opts}=db, doc_or_doc_id, name, options \\ []) do
     {rev, doc_id} = case doc_or_doc_id do
@@ -530,8 +515,6 @@ defmodule Couch.Client do
     end
   end
 
-  # ensure_full_commit (is this in couchdb-api?)
-
   #compact database
   def compact(%DB{server: server, options: opts}=db) do
     url = :hackney_url.make_url(server.url, [db.name, "_compact"], [])
@@ -556,7 +539,22 @@ defmodule Couch.Client do
     end
   end
 
+  # Missing calls:
+
+  # stream_attachment
+  # send_attachment
+
+  # stream_doc
+  # end_doc_stream
+
+  # get_config
+  # set_config
+  # update_config
+  # delete_config
+
   # get_missing_revs
+  # ensure_full_commit (is this in couchdb-api?)
+
 
   ## PRIVATE
   # maybe_docid
@@ -573,6 +571,5 @@ defmodule Couch.Client do
   end
   
 
-  # update_config
 
 end

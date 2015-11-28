@@ -19,19 +19,34 @@
 # THE SOFTWARE.
 
 
-defmodule Couch.Supervisor do
-  use Supervisor
+defmodule Couch.Test.View do
+  use ExUnit.Case
 
-  def start_link do
-    Supervisor.start_link(__MODULE__, :ok, name: Couch.Supervisor)
+  test "all_docs" do
+    r = Couch.UUIDs.random
+    assert r
+    assert String.length(r) == 32
+    r2 = Couch.UUIDs.random
+    assert r2 != r
   end
 
-  def init(:ok) do
-    children = [
-      # worker(Couch.UUIDs, [[name: Couch.UUIDs]]),
-      # supervisor(Couch.ViewSupervisor, [[name: Couch.ViewSupervisor]])
-      # supervisor(Couch.ChangesSupervisor, [[name: Couch.ChangesSupervisor]])
-    ]
-    supervise(children, strategy: :one_for_one)
+  test "utc_random" do
+    r = Couch.UUIDs.utc_random
+    assert r
+    assert String.length(r) == 32
+    r2 = Couch.UUIDs.utc_random
+    assert r2 != r
+    assert r2 > r
   end
+
+  test "get_uuids" do
+    uuids = Couch.UUIDs.get_uuids nil, 100
+    assert uuids
+    assert length(uuids) == 100
+    assert String.length(hd(uuids)) == 32
+    [u1 | rest ] = uuids
+    [u2 | _rest ] = rest
+    assert u1 != u2
+  end
+
 end
