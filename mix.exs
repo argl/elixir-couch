@@ -33,7 +33,7 @@ defmodule Couch.Mixfile do
     [
       {:httpoison, "~> 0.8.0"},
       {:poison, "~> 1.5"},
-      {:barrel_oauth, "~> 1.6"}
+      {:oauth, "~> 1.6", hex: :barrel_oauth}
     ]
   end
 end
