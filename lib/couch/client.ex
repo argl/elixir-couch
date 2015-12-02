@@ -584,7 +584,7 @@ defmodule Couch.Client do
   ## PRIVATE
   # maybe_docid
   defp maybe_docid(server, doc, key \\ :_id) do
-    case Access.fetch(doc, key) do
+    case Map.fetch(doc, key) do
       :error when is_atom(key) ->
         maybe_docid(server, doc, Atom.to_string(key))
       :error ->
