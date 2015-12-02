@@ -272,6 +272,12 @@ defmodule Couch.Client do
       id ->
         Util.encode_docid(id)
     end
+    doc = case Map.get(doc, :_rev) do
+      nil ->
+        Map.delete(doc, :_rev)
+      _ ->
+        doc
+    end
     url = :hackney_url.make_url(server.url, Httpc.doc_url(db, doc_id), options)
     case atts do
       [] ->
@@ -314,6 +320,14 @@ defmodule Couch.Client do
     docs = Enum.map(docs, fn(doc) -> maybe_docid(server, doc) end)
     doc_options = for {k, v} <- options, (k == "all_or_nothing" or k == "new_edits") and is_boolean(v), do: %{k: v}
     options2 = for {k, v} <- options, k != "all_or_nothing" or k != "new_edits", do: {k, v}
+    docs = Enum.map(docs, fn(doc) -> 
+      case Map.get(doc, :_rev) do
+        nil ->
+          Map.delete(doc, :_rev)
+        _ -> doc
+      end
+    end)
+
     body = %{docs: docs}
     Enum.each(doc_options, fn(opt) -> Map.merge(body, opt) end)
 
