@@ -169,6 +169,11 @@ defmodule Couch.Test.BasicTest do
     result = Client.delete_doc(db, doc)
     assert {:ok, _deleted} = result
 
+    # save a doc with a null _rev as well
+    doc = %{_id: "test-document2", _rev: nil, attr: "test"}
+    result = Client.save_doc(db, doc)
+    assert {:ok, saved} = result
+
     doc = %{_id: "~!@#$%^&*()_+-=[]{}|;':,./<> ?"}
     {:ok, _} = Client.save_doc(db, doc)
     {:ok, doc_read} = Client.open_doc(db, "~!@#$%^&*()_+-=[]{}|;':,./<> ?")
