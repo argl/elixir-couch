@@ -1,4 +1,5 @@
-%{"certifi": {:hex, :certifi, "0.3.0"},
+%{"barrel_oauth": {:hex, :barrel_oauth, "1.6.0"},
+  "certifi": {:hex, :certifi, "0.3.0"},
   "hackney": {:hex, :hackney, "1.4.6"},
   "httpoison": {:hex, :httpoison, "0.8.0"},
   "idna": {:hex, :idna, "1.0.2"},
