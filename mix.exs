@@ -15,7 +15,7 @@ defmodule Couch.Mixfile do
   # Type "mix help compile.app" for more information
   def application do
     [
-      applications: [:logger, :httpoison],
+      applications: [:logger, :httpoison, :oauth],
       mod: {Couch, []}
     ]
   end
@@ -33,7 +33,7 @@ defmodule Couch.Mixfile do
     [
       {:httpoison, "~> 0.8.0"},
       {:poison, "~> 1.5"},
-      {:oauth, "~> 1.6", hex: :barrel_oauth}
+      {:barrel_oauth, "~> 1.6", hex: :barrel_oauth, app: false}
     ]
   end
 end
